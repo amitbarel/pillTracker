@@ -201,6 +201,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: FilledButton(
+              key: const Key('save'),
               style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(60)),
               onPressed: _save,
@@ -216,6 +217,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
               _photoSection(s),
               const SizedBox(height: 18),
               TextFormField(
+                key: const Key('nameField'),
                 controller: _name,
                 style: const TextStyle(fontSize: 20),
                 textCapitalization: TextCapitalization.words,
@@ -251,6 +253,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
               Wrap(spacing: 8, runSpacing: 8, children: [
                 for (final a in Anchor.values)
                   FilterChip(
+                    key: Key('anchor.${a.name}'),
                     label: Text(anchorName(s, a)),
                     selected: _anchors.contains(a),
                     onSelected: (on) => setState(() {

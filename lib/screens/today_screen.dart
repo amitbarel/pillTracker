@@ -155,6 +155,7 @@ class _FocusCard extends StatelessWidget {
             Row(children: [
               Expanded(
                 child: FilledButton(
+                  key: const Key('focusTaken'),
                   style: FilledButton.styleFrom(
                       backgroundColor: white, foregroundColor: primary),
                   onPressed: () async {

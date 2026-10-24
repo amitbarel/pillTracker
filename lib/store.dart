@@ -34,6 +34,14 @@ class AppState extends ChangeNotifier {
   @visibleForTesting
   factory AppState.memory() => AppState._(null);
 
+  /// A state saved to [file], for tests.
+  @visibleForTesting
+  static Future<AppState> loadFrom(File file) async {
+    final state = AppState._(file);
+    await state._read();
+    return state;
+  }
+
   Future<void> _read() async {
     final file = _file;
     if (file == null || !await file.exists()) return;

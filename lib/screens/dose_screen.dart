@@ -113,6 +113,7 @@ class DoseScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
+                key: const Key('doseTaken'),
                 style: FilledButton.styleFrom(
                   backgroundColor: white,
                   foregroundColor: _ground,
@@ -129,6 +130,7 @@ class DoseScreen extends StatelessWidget {
               Row(children: [
                 Expanded(
                   child: OutlinedButton(
+                    key: const Key('doseSnooze'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: white,
                       side: const BorderSide(color: Colors.white70, width: 2),
@@ -141,6 +143,7 @@ class DoseScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton(
+                  key: const Key('doseSkip'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: white,
                     side: const BorderSide(color: Colors.white38, width: 2),
