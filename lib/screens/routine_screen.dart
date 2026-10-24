@@ -5,6 +5,7 @@ import '../describe.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../scope.dart';
+import '../theme.dart';
 import 'common.dart';
 
 class RoutineScreen extends StatefulWidget {
@@ -37,7 +38,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
   }
 
   Future<void> _editTime(Anchor anchor, bool weekend) async {
-    final state = Scope.of(context).state;
+    final state = Scope.read(context).state;
     final routine = state.routine;
     final day = weekend ? routine.weekend : routine.weekday;
     final picked = await showTimePicker(
@@ -63,6 +64,10 @@ class _RoutineScreenState extends State<RoutineScreen> {
     final state = scope.state;
     final routine = state.routine;
     final primary = Theme.of(context).colorScheme.primary;
+    final text = Theme.of(context).textTheme;
+    final c = AppColors.of(context);
+    final time = text.titleMedium!.copyWith(fontWeight: FontWeight.w500);
+    final column = text.labelLarge!.copyWith(fontSize: 16, color: c.muted);
     // A Monday, so index 0..6 lines up with DateTime.monday..sunday.
     final monday = DateTime(2024, 1, 1);
 
@@ -90,45 +95,43 @@ class _RoutineScreenState extends State<RoutineScreen> {
                     const SizedBox(),
                     Center(
                         child: Text(s['weekdays'],
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold))),
+                            style: column)),
                     Center(
                         child: Text(s['weekends'],
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold))),
+                            style: column)),
                   ]),
                   for (final a in Anchor.values)
                     TableRow(children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text(rowLabel(a),
-                            style: const TextStyle(fontSize: 18)),
+                            style: text.bodyLarge),
                       ),
                       Padding(
                         padding: const EdgeInsets.all(4),
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.black87,
-                            side: const BorderSide(color: Color(0xFFCFCAC0)),
+                            foregroundColor: c.ink,
+                            side: BorderSide(color: c.line),
                             padding: EdgeInsets.zero,
                           ),
                           onPressed: () => _editTime(a, false),
                           child: Text(clockOfDay(routine.weekday[a]),
-                              style: const TextStyle(fontSize: 19)),
+                              style: time),
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.all(4),
                         child: FilledButton.tonal(
                           style: FilledButton.styleFrom(
-                            backgroundColor: accentTint,
+                            backgroundColor: c.accentTint,
                             foregroundColor: primary,
                             minimumSize: const Size(64, 52),
                             padding: EdgeInsets.zero,
                           ),
                           onPressed: () => _editTime(a, true),
                           child: Text(clockOfDay(routine.weekend[a]),
-                              style: const TextStyle(fontSize: 19)),
+                              style: time),
                         ),
                       ),
                     ]),
@@ -178,7 +181,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
               _permissionTile(s, s['allowAlarms'], _alarms),
               ListTile(
                 leading: const Icon(Icons.battery_alert_outlined),
-                title: Text(s['batteryTip'], style: const TextStyle(fontSize: 16)),
+                title: Text(s['batteryTip'], style: text.bodyMedium),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
@@ -190,8 +193,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
                     await scope.reminders.testAlarm();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(s['testAlarmSet'],
-                              style: const TextStyle(fontSize: 18))));
+                          content: Text(s['testAlarmSet'])));
                     }
                   },
                   label: Text(s['testAlarm']),
@@ -224,12 +226,13 @@ class _RoutineScreenState extends State<RoutineScreen> {
 
   Widget _permissionTile(S s, String title, bool? allowed) {
     final primary = Theme.of(context).colorScheme.primary;
+    final c = AppColors.of(context);
     return ListTile(
       leading: Icon(
         allowed == false ? Icons.error_outline : Icons.check_circle_outline,
-        color: allowed == false ? warn : primary,
+        color: allowed == false ? c.warn : primary,
       ),
-      title: Text(title, style: const TextStyle(fontSize: 18)),
+      title: Text(title, style: Theme.of(context).textTheme.bodyLarge),
       subtitle: allowed == true ? Text(s['allowed']) : null,
       trailing: allowed == false
           ? FilledButton(

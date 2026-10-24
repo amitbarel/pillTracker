@@ -9,6 +9,7 @@ import '../l10n.dart';
 import '../models.dart';
 import '../ocr.dart';
 import '../scope.dart';
+import '../theme.dart';
 import 'common.dart';
 
 class EditMedicineScreen extends StatefulWidget {
@@ -138,20 +139,20 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
       context: context,
       builder: (c) => AlertDialog(
         content: Text(s.f('deleteConfirm', {'name': m.name}),
-            style: const TextStyle(fontSize: 18)),
+            style: Theme.of(context).textTheme.bodyLarge),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(c, false),
               child: Text(s['cancel'])),
           FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: warn),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.of(context).warn),
               onPressed: () => Navigator.pop(c, true),
               child: Text(s['delete'])),
         ],
       ),
     );
     if (ok != true || !mounted) return;
-    await Scope.of(context).state.deleteMedicine(m);
+    await Scope.read(context).state.deleteMedicine(m);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -178,6 +179,8 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
     final routine = Scope.of(context).state.routine;
     final selectedPreset = Preset.matching(_anchors);
     final hasMeal = _anchors.any((a) => a.isMeal);
+    final text = Theme.of(context).textTheme;
+    final field = text.titleMedium!.copyWith(fontWeight: FontWeight.w400);
 
     return PopScope(
       onPopInvokedWithResult: (didPop, _) {
@@ -219,7 +222,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
               TextFormField(
                 key: const Key('nameField'),
                 controller: _name,
-                style: const TextStyle(fontSize: 20),
+                style: field,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
                     labelText: s['name'], hintText: s['nameHint']),
@@ -230,7 +233,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _dose,
-                style: const TextStyle(fontSize: 20),
+                style: field,
                 decoration: InputDecoration(
                     labelText: s['eachTime'], hintText: s['doseHint']),
               ),
@@ -247,8 +250,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
                   ),
               ]),
               const SizedBox(height: 12),
-              Text(s['whichTimes'],
-                  style: const TextStyle(fontSize: 16, color: muted)),
+              Text(s['whichTimes'], style: text.bodyMedium),
               const SizedBox(height: 6),
               Wrap(spacing: 8, runSpacing: 8, children: [
                 for (final a in Anchor.values)
@@ -267,9 +269,8 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(s['pickATime'],
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontSize: 16)),
+                      style: text.bodyMedium!.copyWith(
+                          color: Theme.of(context).colorScheme.error)),
                 ),
               if (hasMeal) ...[
                 SectionTitle(s['food']),
@@ -305,7 +306,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
               TextFormField(
                 controller: _notes,
                 maxLines: 2,
-                style: const TextStyle(fontSize: 18),
+                style: text.bodyLarge,
                 decoration: InputDecoration(
                     labelText: s['notes'], hintText: s['notesHint']),
               ),
@@ -318,15 +319,22 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
 
   Widget _photoSection(S s) {
     final candidates = _candidates;
+    final secondary = Theme.of(context).textTheme.bodyMedium;
+    final m = widget.medicine;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
           onTap: () => _pickPhoto(ImageSource.camera),
           child: Stack(alignment: Alignment.center, children: [
-            MedicinePhoto(path: _photoPath, size: 120, radius: 16),
+            MedicinePhoto(
+              path: _photoPath,
+              size: 120,
+              radius: 16,
+              heroTag: m == null ? null : MedicinePhoto.tagFor(m.id),
+            ),
             if (_photoPath == null)
-              const Icon(Icons.photo_camera, size: 40, color: muted),
+              Icon(Icons.photo_camera, size: 40, color: AppColors.of(context).muted),
           ]),
         ),
         const SizedBox(width: 14),
@@ -342,15 +350,12 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2.5)),
                   const SizedBox(width: 10),
                   Expanded(
-                      child: Text(s['readingLabel'],
-                          style: const TextStyle(fontSize: 16))),
+                      child: Text(s['readingLabel'], style: secondary)),
                 ])
               else if (candidates != null && candidates.isEmpty)
-                Text(s['nothingFound'],
-                    style: const TextStyle(fontSize: 16, color: muted))
+                Text(s['nothingFound'], style: secondary)
               else if (candidates != null) ...[
-                Text(s['foundOnBox'],
-                    style: const TextStyle(fontSize: 16, color: muted)),
+                Text(s['foundOnBox'], style: secondary),
                 const SizedBox(height: 6),
                 Wrap(spacing: 8, runSpacing: 8, children: [
                   for (final c in candidates)
@@ -372,8 +377,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
               TextButton.icon(
                 onPressed: () => _pickPhoto(ImageSource.gallery),
                 icon: const Icon(Icons.photo_library_outlined),
-                label: Text(s['fromGallery'],
-                    style: const TextStyle(fontSize: 16)),
+                label: Text(s['fromGallery']),
               ),
             ],
           ),
@@ -400,8 +404,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(s['remindersAt'],
-                style: const TextStyle(fontSize: 16, color: muted)),
+            Text(s['remindersAt'], style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 6),
             _previewRow(s['weekdays'], times(routine.weekday)),
             const SizedBox(height: 4),
@@ -420,13 +423,15 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
     return clock(t);
   }
 
-  Widget _previewRow(String label, String value) => Row(children: [
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 18))),
-        Flexible(
-          child: Text(value,
-              textAlign: TextAlign.end,
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        ),
-      ]);
+  Widget _previewRow(String label, String value) {
+    final body = Theme.of(context).textTheme.bodyLarge!;
+    return Row(children: [
+      Expanded(child: Text(label, style: body)),
+      Flexible(
+        child: Text(value,
+            textAlign: TextAlign.end,
+            style: body.copyWith(fontWeight: FontWeight.w700)),
+      ),
+    ]);
+  }
 }

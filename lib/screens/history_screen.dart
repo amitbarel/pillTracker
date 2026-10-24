@@ -7,6 +7,7 @@ import '../models.dart';
 import '../schedule.dart';
 import '../scope.dart';
 import '../store.dart';
+import '../theme.dart';
 import 'common.dart';
 import 'today_screen.dart';
 
@@ -70,63 +71,81 @@ class HistoryScreen extends StatelessWidget {
     final taken = week.fold(0, (n, r) => n + r.taken);
     final total = week.fold(0, (n, r) => n + r.due);
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: [
-        PageTitle(s['history'],
-            subtitle: total == 0
-                ? null
-                : s.f('last7', {'taken': taken, 'total': total})),
-        if (records.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Text(s['nothingYet'],
-                style: const TextStyle(fontSize: 18, color: muted)),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.share_outlined),
-              onPressed: () => SharePlus.instance.share(ShareParams(
-                  text: historyText(s, state, records),
-                  subject: s['history'])),
-              label: Text(s['shareHistory']),
+    final text = Theme.of(context).textTheme;
+    final c = AppColors.of(context);
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: PageTitle(s['history'],
+              subtitle: total == 0
+                  ? null
+                  : s.f('last7', {'taken': taken, 'total': total})),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          sliver: SliverToBoxAdapter(
+            child: records.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Text(s['nothingYet'], style: text.bodyLarge!.copyWith(color: c.muted)),
+                  )
+                : OutlinedButton.icon(
+                    icon: const Icon(Icons.share_outlined),
+                    onPressed: () => SharePlus.instance.share(ShareParams(
+                        text: historyText(s, state, records),
+                        subject: s['history'])),
+                    label: Text(s['shareHistory']),
+                  ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          sliver: SliverList.builder(
+            itemCount: records.length,
+            itemBuilder: (context, i) => Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: _DayCard(record: records[i]),
             ),
           ),
-        for (final r in records)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      child: Row(children: [
-                        Expanded(
-                          child: Text(dayTitle(s, r.day),
-                              style: const TextStyle(
-                                  fontSize: 19, fontWeight: FontWeight.bold)),
-                        ),
-                        Text(s.f('ofDoses', {'taken': r.taken, 'total': r.due}),
-                            style: TextStyle(
-                                fontSize: 16,
-                                color: r.taken == r.due ? muted : warn,
-                                fontWeight: FontWeight.bold)),
-                      ]),
-                    ),
-                    for (final (dose, st) in r.doses)
-                      if (st != DoseState.upcoming)
-                        DoseTile(dose: dose, state: st),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        ),
       ],
+    );
+  }
+}
+
+class _DayCard extends StatelessWidget {
+  const _DayCard({required this.record});
+
+  final DayRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final text = Theme.of(context).textTheme;
+    final c = AppColors.of(context);
+    final r = record;
+    final complete = r.taken == r.due;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(children: [
+                Expanded(child: Text(dayTitle(s, r.day), style: text.titleMedium)),
+                Text(s.f('ofDoses', {'taken': r.taken, 'total': r.due}),
+                    style: text.labelLarge!.copyWith(
+                        fontSize: 16, color: complete ? c.muted : c.warn)),
+              ]),
+            ),
+            for (final (dose, st) in r.doses)
+              if (st != DoseState.upcoming)
+                DoseTile(dose: dose, state: st, compact: true),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -83,6 +83,9 @@ void main() {
       final state = await sampleState();
       await tester.pumpWidget(app(state, lang, const HomeScreen()));
       await tester.pumpAndSettle();
+      // The list builds lazily, so scroll it all the way to lay out every dose.
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
+      await tester.pumpAndSettle();
       expect(find.text('Paracetamol 500 mg'), findsWidgets);
       for (final icon in [
         Icons.medication_outlined,

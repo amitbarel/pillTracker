@@ -2,29 +2,38 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../describe.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../schedule.dart';
-import '../describe.dart';
-
-const muted = Color(0xFF5B6461);
-const warn = Color(0xFFB4480E);
-const warnTint = Color(0xFFFCEBDD);
-const accentTint = Color(0xFFE3F1EF);
+import '../theme.dart';
 
 /// The photo of the box, or a placeholder.
+///
+/// Give [heroTag] where the same medicine's photo appears on the next screen,
+/// so it flies across instead of popping in.
 class MedicinePhoto extends StatelessWidget {
-  const MedicinePhoto({super.key, this.path, this.size = 56, this.radius = 12});
+  const MedicinePhoto({
+    super.key,
+    this.path,
+    this.size = 56,
+    this.radius = 12,
+    this.heroTag,
+  });
 
   final String? path;
   final double size;
   final double radius;
+  final Object? heroTag;
+
+  static Object tagFor(int medicineId) => 'medicine-photo-$medicineId';
 
   @override
   Widget build(BuildContext context) {
     final p = path;
     final file = p == null ? null : File(p);
-    return ClipRRect(
+    final scheme = Theme.of(context).colorScheme;
+    final photo = ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: SizedBox(
         width: size,
@@ -32,12 +41,13 @@ class MedicinePhoto extends StatelessWidget {
         child: file != null && file.existsSync()
             ? Image.file(file, fit: BoxFit.cover, cacheWidth: (size * 3).round())
             : ColoredBox(
-                color: accentTint,
-                child: Icon(Icons.medication,
-                    size: size * 0.55, color: Theme.of(context).colorScheme.primary),
+                color: AppColors.of(context).accentTint,
+                child: Icon(Icons.medication, size: size * 0.55, color: scheme.primary),
               ),
       ),
     );
+    final tag = heroTag;
+    return tag == null ? photo : Hero(tag: tag, child: photo);
   }
 }
 
@@ -51,8 +61,9 @@ class DoseStateLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
+    final c = AppColors.of(context);
     final primary = Theme.of(context).colorScheme.primary;
-    const style = TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
+    final style = Theme.of(context).textTheme.labelLarge!.copyWith(fontSize: 16);
     switch (state) {
       case DoseState.taken:
         return Row(mainAxisSize: MainAxisSize.min, children: [
@@ -62,19 +73,20 @@ class DoseStateLabel extends StatelessWidget {
               style: style.copyWith(color: primary)),
         ]);
       case DoseState.skipped:
-        return Text(s['skipped'], style: style.copyWith(color: muted));
+        return Text(s['skipped'], style: style.copyWith(color: c.muted));
       case DoseState.missed:
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-              color: warnTint, borderRadius: BorderRadius.circular(99)),
-          child: Text(s['missed'], style: style.copyWith(color: warn)),
+        return DecoratedBox(
+          decoration: BoxDecoration(color: c.warnTint, borderRadius: BorderRadius.circular(99)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Text(s['missed'], style: style.copyWith(color: c.warn)),
+          ),
         );
       case DoseState.due:
-        return Text(s['due'], style: style.copyWith(color: warn));
+        return Text(s['due'], style: style.copyWith(color: c.warn));
       case DoseState.upcoming:
         return Text(s['upcoming'],
-            style: const TextStyle(fontSize: 16, color: muted));
+            style: style.copyWith(color: c.muted, fontWeight: FontWeight.w400));
     }
   }
 }
@@ -86,8 +98,7 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 8, bottom: 8),
-        child: Text(text,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
       );
 }
 
@@ -98,26 +109,46 @@ class PageTitle extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Expanded(
-                child: Text(title,
-                    style: const TextStyle(
-                        fontSize: 32, fontWeight: FontWeight.bold)),
-              ),
-              ?trailing,
-            ]),
-            if (subtitle != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(subtitle!,
-                    style: const TextStyle(fontSize: 18, color: muted)),
-              ),
-          ],
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Expanded(child: Text(title, style: text.headlineMedium)),
+            ?trailing,
+          ]),
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(subtitle!, style: text.bodyMedium!.copyWith(fontSize: 18)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A rounded badge, like "Weekend times".
+class Pill extends StatelessWidget {
+  const Pill(this.text, {super.key});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.of(context).accentTint,
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                fontSize: 15, color: Theme.of(context).colorScheme.primary),
+          ),
         ),
       );
 }

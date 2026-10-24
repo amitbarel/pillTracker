@@ -1,20 +1,21 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../describe.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../schedule.dart';
 import '../scope.dart';
+import '../theme.dart';
+import 'common.dart';
 
 /// Shown when a reminder rings or is tapped: big photo, big buttons.
 class DoseScreen extends StatelessWidget {
   const DoseScreen({super.key, required this.dose});
 
   final DoseKey dose;
-
-  static const _ground = Color(0xFF0B3D39);
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +26,10 @@ class DoseScreen extends StatelessWidget {
     final time = doseTime(scope.state.routine, m, dose.day, dose.anchor);
     final log = scope.state.logFor(dose);
     final photo = m.photoPath;
-    const white = Colors.white;
+    final c = AppColors.of(context);
+    final text = Theme.of(context).textTheme;
+    final white = c.onAlarm;
+    final soft = text.bodyLarge!.copyWith(color: c.onAlarmMuted);
 
     Future<void> answer(Future<void> Function() action) async {
       await scope.reminders.dismiss(dose);
@@ -34,7 +38,7 @@ class DoseScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: _ground,
+      backgroundColor: c.alarm,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -45,30 +49,26 @@ class DoseScreen extends StatelessWidget {
                 alignment: AlignmentDirectional.centerEnd,
                 child: IconButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, color: white, size: 30),
+                  icon: Icon(Icons.close, color: white, size: 30),
                   tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                 ),
               ),
               Text(s['timeForMedicine'],
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70, fontSize: 22)),
+                  style: soft.copyWith(fontSize: 22)),
               Text(clock(time),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: white,
-                      fontSize: 72,
-                      fontWeight: FontWeight.bold,
-                      height: 1.1)),
+                  style: text.displayLarge!.copyWith(color: white)),
               Text(
                   '${dayTitle(s, dose.day)} · ${whenText(s, dose.anchor, m.food)}',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70, fontSize: 18)),
+                  style: soft),
               const SizedBox(height: 20),
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                      color: white, borderRadius: BorderRadius.circular(24)),
+                      color: Theme.of(context).cardTheme.color, borderRadius: BorderRadius.circular(24)),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -83,17 +83,19 @@ class DoseScreen extends StatelessWidget {
                           ),
                         )
                       else
-                        const Spacer(),
+                        Expanded(
+                          child: Center(
+                            child: MedicinePhoto(size: 140, radius: 28),
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       Text(m.name,
-                          style: const TextStyle(
-                              fontSize: 28, fontWeight: FontWeight.bold)),
+                          style: text.titleLarge!.copyWith(fontSize: 28, color: c.ink)),
                       Text(s.f('take', {'dose': m.dose}),
-                          style: const TextStyle(fontSize: 22)),
+                          style: text.bodyLarge!.copyWith(fontSize: 22)),
                       if (m.notes.isNotEmpty)
                         Text(m.notes,
-                            style: const TextStyle(
-                                fontSize: 17, color: Color(0xFF5B6461))),
+                            style: text.bodyMedium!.copyWith(fontSize: 17)),
                       if (log != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
@@ -101,10 +103,8 @@ class DoseScreen extends StatelessWidget {
                             log.status == IntakeStatus.taken
                                 ? s.f('takenAt', {'time': clock(log.at)})
                                 : s['skipped'],
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary),
+                            style: text.labelLarge!.copyWith(
+                                fontSize: 18, color: Theme.of(context).colorScheme.primary),
                           ),
                         ),
                     ],
@@ -116,14 +116,15 @@ class DoseScreen extends StatelessWidget {
                 key: const Key('doseTaken'),
                 style: FilledButton.styleFrom(
                   backgroundColor: white,
-                  foregroundColor: _ground,
+                  foregroundColor: c.alarm,
                   minimumSize: const Size.fromHeight(76),
-                  textStyle: const TextStyle(
-                      fontSize: 26, fontWeight: FontWeight.bold),
+                  textStyle: text.labelLarge!.copyWith(fontSize: 26),
                 ),
                 icon: const Icon(Icons.check, size: 32),
-                onPressed: () => answer(
-                    () => scope.state.record(dose, IntakeStatus.taken)),
+                onPressed: () {
+                  HapticFeedback.mediumImpact();
+                  answer(() => scope.state.record(dose, IntakeStatus.taken));
+                },
                 label: Text(s['tookIt']),
               ),
               const SizedBox(height: 12),
@@ -133,7 +134,7 @@ class DoseScreen extends StatelessWidget {
                     key: const Key('doseSnooze'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: white,
-                      side: const BorderSide(color: Colors.white70, width: 2),
+                      side: BorderSide(color: c.onAlarmMuted, width: 2),
                       minimumSize: const Size.fromHeight(60),
                     ),
                     onPressed: () =>
@@ -146,7 +147,7 @@ class DoseScreen extends StatelessWidget {
                   key: const Key('doseSkip'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: white,
-                    side: const BorderSide(color: Colors.white38, width: 2),
+                    side: BorderSide(color: c.onAlarmMuted.withValues(alpha: 0.35), width: 2),
                     minimumSize: const Size(100, 60),
                   ),
                   onPressed: () => answer(

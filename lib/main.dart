@@ -14,6 +14,9 @@ import 'screens/routine_screen.dart';
 import 'screens/today_screen.dart';
 import 'scope.dart';
 import 'store.dart';
+import 'theme.dart';
+
+export 'theme.dart' show buildTheme;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,59 +25,6 @@ Future<void> main() async {
   final reminders = Reminders(state);
   await reminders.init();
   runApp(PillApp(state: state, reminders: reminders));
-}
-
-const seed = Color(0xFF0B6B63);
-
-ThemeData buildTheme() {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: seed,
-    primary: seed,
-    surface: const Color(0xFFF6F4EF),
-  );
-  final base = ThemeData(colorScheme: scheme, useMaterial3: true);
-  return base.copyWith(
-    scaffoldBackgroundColor: scheme.surface,
-    // Bigger body text: this app is read at arm's length.
-    textTheme: base.textTheme.copyWith(
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(fontSize: 18),
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(fontSize: 17),
-      labelLarge: base.textTheme.labelLarge?.copyWith(fontSize: 17),
-      titleMedium: base.textTheme.titleMedium?.copyWith(fontSize: 19),
-    ),
-    cardTheme: const CardThemeData(
-      color: Colors.white,
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(16))),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(64, 56),
-        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    ),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(64, 52),
-        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        side: const BorderSide(color: seed, width: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    ),
-    chipTheme: base.chipTheme.copyWith(
-      labelStyle: const TextStyle(fontSize: 17),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-    ),
-    inputDecorationTheme: const InputDecorationTheme(
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12))),
-    ),
-  );
 }
 
 class PillApp extends StatefulWidget {
@@ -163,7 +113,7 @@ class _PillAppState extends State<PillApp> with WidgetsBindingObserver {
     _messenger.currentState
       ?..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-          content: Text(text, style: const TextStyle(fontSize: 18))));
+          content: Text(text)));
   }
 
   @override
@@ -219,18 +169,30 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final pages = [
-      const TodayScreen(),
-      const MedicinesScreen(),
-      const HistoryScreen(),
-      const RoutineScreen(),
+    const pages = [
+      TodayScreen(),
+      MedicinesScreen(),
+      HistoryScreen(),
+      RoutineScreen(),
     ];
-    return Scaffold(
-      body: SafeArea(child: pages[_tab]),
+    // Back on another tab returns to Today instead of leaving the app.
+    return PopScope(
+      canPop: _tab == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _tab = 0);
+      },
+      child: Scaffold(
+      body: SafeArea(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          switchInCurve: Curves.easeOut,
+          switchOutCurve: Curves.easeIn,
+          child: KeyedSubtree(key: ValueKey(_tab), child: pages[_tab]),
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
-        height: 76,
         destinations: [
           NavigationDestination(
               icon: const Icon(Icons.today_outlined),
@@ -249,6 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
               selectedIcon: const Icon(Icons.wb_sunny),
               label: s['myDay']),
         ],
+      ),
       ),
     );
   }
