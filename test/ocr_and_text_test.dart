@@ -51,6 +51,21 @@ void main() {
       expect(names, isNot(contains('ןםפךצ')));
     });
 
+    test('Given a Hebrew box read with noise, Then its name comes first', () {
+      // A made-up box, misread the way the Hebrew reader misreads real ones.
+      final names = nameCandidates([
+        TextLine('| דוגמזול פארמקו', 80, confidence: 0.84),
+        TextLine('\\במת |ב> 9', 71, confidence: 0.29),
+        TextLine('דוגמזול 0', 91, confidence: 0.57),
+        TextLine('טבליות בשחרור מושהה', 42, confidence: 0.92),
+        TextLine('בעל הרישום: פארמקו בע"מ [', 27, confidence: 0.88),
+        TextLine('ת.ד. 1, עיר לדוגמה, 1234567', 61, confidence: 0.55),
+        TextLine('השש |', 85, confidence: 0.35),
+        TextLine('pharmaco', 50, confidence: 0.95),
+      ]);
+      expect(names.first, 'דוגמזול פארמקו');
+    });
+
     test('nothing readable gives no candidates', () {
       expect(nameCandidates([TextLine('---', 50)]), isEmpty);
     });

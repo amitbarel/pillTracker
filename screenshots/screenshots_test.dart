@@ -127,10 +127,23 @@ void main() {
         await tester.pumpAndSettle();
         await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_${i + 2}_$name.png'));
       }
+      // My day is open: the clock for changing a time.
+      await tester.tap(find.text('6:00'));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_4b_timepicker.png'));
+      await tester.tap(find.byType(TextButton).first); // Cancel
+      await tester.pumpAndSettle();
 
       await tester.pumpWidget(app(state, lang, EditMedicineScreen(medicine: state.medicines[1])));
       await tester.pumpAndSettle();
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_5_edit.png'));
+
+      // Once a day: one time only.
+      await tester.pumpWidget(app(state, lang, EditMedicineScreen(medicine: state.medicines[0])));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -260));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_5b_once.png'));
 
       final dose = dosesForDay(state.routine, state.medicines, DateTime.now())[1];
       await tester.pumpWidget(app(state, lang, DoseScreen(dose: dose.key)));
