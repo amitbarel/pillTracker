@@ -68,8 +68,8 @@ class _RoutineScreenState extends State<RoutineScreen> {
     final c = AppColors.of(context);
     final time = text.titleMedium!.copyWith(fontWeight: FontWeight.w500);
     final column = text.labelLarge!.copyWith(fontSize: 16, color: c.muted);
-    // A Monday, so index 0..6 lines up with DateTime.monday..sunday.
-    final monday = DateTime(2024, 1, 1);
+    // The week starts on Sunday: 31 Dec 2023 was one.
+    final sunday = DateTime(2023, 12, 31);
 
     String rowLabel(Anchor a) =>
         a == Anchor.wake ? s['routine.wake'] : anchorName(s, a);
@@ -155,15 +155,14 @@ class _RoutineScreenState extends State<RoutineScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Wrap(spacing: 6, runSpacing: 6, children: [
-            for (var i = 0; i < 7; i++)
+            for (final day in [for (var i = 0; i < 7; i++) sunday.add(Duration(days: i))])
               FilterChip(
                 showCheckmark: false,
-                label: Text(DateFormat.E(s.languageCode)
-                    .format(monday.add(Duration(days: i)))),
-                selected: routine.weekendDays.contains(i + 1),
+                label: Text(DateFormat.E(s.languageCode).format(day)),
+                selected: routine.weekendDays.contains(day.weekday),
                 onSelected: (on) {
                   final days = {...routine.weekendDays};
-                  on ? days.add(i + 1) : days.remove(i + 1);
+                  on ? days.add(day.weekday) : days.remove(day.weekday);
                   state.setRoutine(routine.copyWith(weekendDays: days));
                 },
               ),

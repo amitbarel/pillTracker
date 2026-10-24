@@ -4,7 +4,9 @@ import 'package:pill_tracker/models.dart';
 import 'package:pill_tracker/schedule.dart';
 
 void main() {
-  final routine = Routine.defaults;
+  // Most tests use a Saturday and Sunday weekend, so Friday has weekday times.
+  final routine = Routine.defaults
+      .copyWith(weekendDays: {DateTime.saturday, DateTime.sunday});
   // Friday 23 and Saturday 24 October 2026.
   final friday = DateTime(2026, 10, 23);
   final saturday = DateTime(2026, 10, 24);
@@ -25,11 +27,14 @@ void main() {
         endDate: end,
       );
 
-  test('weekend times are an hour later by default', () {
-    expect(routine.isWeekend(friday), isFalse);
-    expect(routine.isWeekend(saturday), isTrue);
-    expect(routine.weekday[Anchor.wake], const TimeOfDay(hour: 6, minute: 0));
-    expect(routine.weekend[Anchor.wake], const TimeOfDay(hour: 7, minute: 0));
+  test('Given the defaults, Then the weekend is Friday and Saturday, an hour later', () {
+    final d = Routine.defaults;
+    expect(d.isWeekend(DateTime(2026, 10, 22)), isFalse); // Thursday
+    expect(d.isWeekend(friday), isTrue);
+    expect(d.isWeekend(saturday), isTrue);
+    expect(d.isWeekend(DateTime(2026, 10, 25)), isFalse); // Sunday
+    expect(d.weekday[Anchor.wake], const TimeOfDay(hour: 6, minute: 0));
+    expect(d.weekend[Anchor.wake], const TimeOfDay(hour: 7, minute: 0));
   });
 
   test('twice a day after food rings 30 minutes after breakfast and dinner', () {
@@ -51,9 +56,8 @@ void main() {
   });
 
   test('custom weekend days', () {
-    final israel = routine.copyWith(weekendDays: {DateTime.friday, DateTime.saturday});
-    expect(israel.isWeekend(friday), isTrue);
-    expect(israel.isWeekend(DateTime(2026, 10, 25)), isFalse);
+    expect(routine.isWeekend(friday), isFalse);
+    expect(routine.isWeekend(DateTime(2026, 10, 25)), isTrue);
   });
 
   test('courses only run between their start and end dates', () {

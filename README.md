@@ -9,8 +9,8 @@ A simple medicine reminder for Android, in Hebrew and English.
 - **Plain instructions.** "Twice a day", "after food", for how many days.
 - **Weekday and weekend times.** Doses are tied to wake-up, meals and bedtime.
   Set those once for weekdays and once for weekends (an hour later by
-  default) and every reminder follows. Which days count as the weekend is
-  configurable.
+  default) and every reminder follows. The weekend is Friday and Saturday
+  by default and can be changed.
 - **Alarms that ring.** Reminders use Android's alarm-clock scheduling, show
   over the lock screen with the photo of the box, keep ringing until
   answered, and survive restarts. Buttons: I took it / In 10 min / Skip.

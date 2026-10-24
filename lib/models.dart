@@ -110,7 +110,8 @@ class Routine {
   static final defaults = Routine(
     weekday: DayRoutine.weekdayDefault,
     weekend: DayRoutine.weekdayDefault.shiftedBy(60),
-    weekendDays: const {DateTime.saturday, DateTime.sunday},
+    // Sunday to Thursday is the working week in Israel.
+    weekendDays: const {DateTime.friday, DateTime.saturday},
   );
 
   DayRoutine forDay(DateTime day) =>
