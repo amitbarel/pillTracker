@@ -152,3 +152,39 @@ class Pill extends StatelessWidget {
         ),
       );
 }
+
+/// The clock-face time picker. A 12-hour face with AM/PM reads like a real
+/// clock; the 24-hour face crowds two rings of numbers into the dial.
+Future<TimeOfDay?> pickClockTime(BuildContext context, TimeOfDay initial) =>
+    showTimePicker(
+      context: context,
+      initialTime: initial,
+      initialEntryMode: TimePickerEntryMode.dial,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: child!,
+      ),
+    );
+
+/// The app's text is already large, so the phone's font size is followed only
+/// up to [maxScale]; beyond that, words broke into one letter per line.
+class TextSizeLimit extends StatelessWidget {
+  const TextSizeLimit({super.key, required this.child});
+
+  static const maxScale = 1.5;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return MediaQuery(
+      data: media.copyWith(textScaler: media.textScaler.clamp(maxScaleFactor: maxScale)),
+      child: child,
+    );
+  }
+}
+
+/// True when the phone's font size is turned up, so rows should stack
+/// instead of squeezing text beside other things.
+bool largeText(BuildContext context) => MediaQuery.textScalerOf(context).scale(10) > 11.5;

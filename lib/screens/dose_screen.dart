@@ -23,7 +23,7 @@ class DoseScreen extends StatelessWidget {
     final scope = Scope.of(context);
     final m = scope.state.medicine(dose.medicineId);
     if (m == null) return const SizedBox.shrink();
-    final time = doseTime(scope.state.routine, m, dose.day, dose.anchor);
+    final time = doseTime(scope.state.routine, m, dose.day, dose.slot);
     final log = scope.state.logFor(dose);
     final photo = m.photoPath;
     final c = AppColors.of(context);
@@ -60,7 +60,7 @@ class DoseScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: text.displayLarge!.copyWith(color: white)),
               Text(
-                  '${dayTitle(s, dose.day)} · ${whenText(s, dose.anchor, m.food)}',
+                  '${dayTitle(s, dose.day)} · ${whenText(s, dose.slot, m.food)}',
                   textAlign: TextAlign.center,
                   style: soft),
               const SizedBox(height: 20),

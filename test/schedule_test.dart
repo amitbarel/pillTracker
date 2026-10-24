@@ -17,14 +17,18 @@ void main() {
     FoodRelation food = FoodRelation.after,
     DateTime? start,
     DateTime? end,
+    Set<int>? days,
+    DateTime? addedAt,
   }) =>
       Medicine(
         id: id,
-        name: 'Paracetamol',
+        name: 'Fictivol',
         anchors: anchors ?? Preset.twice.anchors,
         food: food,
         startDate: start ?? DateTime(2026, 10, 1),
         endDate: end,
+        days: days,
+        addedAt: addedAt,
       );
 
   test('Given the defaults, Then the weekend is Friday and Saturday, an hour later', () {
@@ -68,6 +72,48 @@ void main() {
     expect(dosesForDay(routine, [m], DateTime(2026, 10, 25)), isEmpty);
   });
 
+  test('a medicine for some days of the week only has doses on those days', () {
+    final m = med(days: {DateTime.friday, DateTime.monday});
+    expect(dosesForDay(routine, [m], friday), hasLength(2));
+    expect(dosesForDay(routine, [m], saturday), isEmpty);
+    expect(dosesForDay(routine, [m], DateTime(2026, 10, 26)), hasLength(2)); // Monday
+    expect(dosesForDay(routine, [med()], saturday), hasLength(2));
+  });
+
+  test('a medicine added in the afternoon has no missed morning dose that day', () {
+    final m = med(start: friday, addedAt: DateTime(2026, 10, 23, 14));
+    final today = dosesForDay(routine, [m], friday);
+    expect(today.map((d) => d.slot), [const Slot.anchor(Anchor.dinner)]);
+    expect(dosesForDay(routine, [m], saturday), hasLength(2));
+  });
+
+  test('a set time rings at exactly that time, weekdays and weekends, whatever the food', () {
+    final m = Medicine(
+      id: 3,
+      name: 'Testamol',
+      anchors: {Anchor.dinner},
+      clockTimes: const [TimeOfDay(hour: 9, minute: 0)],
+      startDate: DateTime(2026, 10, 1),
+    );
+    for (final day in [friday, saturday]) {
+      final doses = dosesForDay(routine, [m], day);
+      expect(doses.first.time, DateTime(day.year, day.month, day.day, 9));
+      expect(doses.first.slot, const Slot.clock(TimeOfDay(hour: 9, minute: 0)));
+    }
+    expect(m.perDay, 2);
+    expect(m.slotIndex(const Slot.clock(TimeOfDay(hour: 9, minute: 0))), Anchor.values.length);
+  });
+
+  test('set times are kept earliest first without repeats', () {
+    final m = med()
+      ..clockTimes = sortedTimes(const [
+        TimeOfDay(hour: 21, minute: 0),
+        TimeOfDay(hour: 9, minute: 0),
+        TimeOfDay(hour: 21, minute: 0),
+      ]);
+    expect(m.clockTimes, const [TimeOfDay(hour: 9, minute: 0), TimeOfDay(hour: 21, minute: 0)]);
+  });
+
   test('doses of several medicines are sorted by time', () {
     final a = med(id: 1, anchors: {Anchor.dinner});
     final b = med(id: 2, anchors: {Anchor.wake});
@@ -83,7 +129,7 @@ void main() {
     final log = IntakeLog(
       medicineId: 1,
       day: friday,
-      anchor: Anchor.breakfast,
+      slot: const Slot.anchor(Anchor.breakfast),
       status: IntakeStatus.taken,
       at: DateTime(2026, 10, 23, 9, 30),
     );
@@ -92,22 +138,42 @@ void main() {
 
   test('a bedtime dose answered after midnight belongs to the day before', () {
     final m = med(anchors: {Anchor.bedtime});
-    expect(doseDayFor(routine, m, Anchor.bedtime, DateTime(2026, 10, 24, 0, 20)), friday);
-    expect(doseDayFor(routine, m, Anchor.bedtime, DateTime(2026, 10, 23, 22, 5)), friday);
+    expect(doseDayFor(routine, m, const Slot.anchor(Anchor.bedtime), DateTime(2026, 10, 24, 0, 20)), friday);
+    expect(doseDayFor(routine, m, const Slot.anchor(Anchor.bedtime), DateTime(2026, 10, 23, 22, 5)), friday);
   });
 
   test('dose keys round-trip', () {
-    final key = DoseKey(12, DateTime(2026, 1, 5, 13, 40), Anchor.dinner);
+    final key = DoseKey(12, DateTime(2026, 1, 5, 13, 40), const Slot.anchor(Anchor.dinner));
     final parsed = DoseKey.tryParse(key.toString());
     expect(parsed, key);
     expect(parsed!.day, DateTime(2026, 1, 5));
     expect(DoseKey.tryParse('nonsense'), isNull);
+    final clock = DoseKey(12, DateTime(2026, 1, 5), const Slot.clock(TimeOfDay(hour: 9, minute: 5)));
+    expect(clock.toString(), '12|2026-1-5|at09:05');
+    expect(DoseKey.tryParse(clock.toString()), clock);
+    expect(DoseKey.tryParse('12|2026-1-5|at25:00'), isNull);
     expect(DoseKey.tryParse(null), isNull);
   });
 
   test('medicines and routines survive saving', () {
-    final m = med(end: saturday)..photoPath = '/x.jpg';
+    final m = med(end: saturday, days: {5, 1}, addedAt: DateTime(2026, 10, 1, 9))
+      ..photoPath = '/x.jpg';
     final back = Medicine.fromJson(m.toJson());
+    expect(back.days, {1, 5});
+    expect(back.addedAt, DateTime(2026, 10, 1, 9));
+    expect(Medicine.fromJson(med().toJson()).days, isNull);
+    final timed = med()..clockTimes = const [TimeOfDay(hour: 9, minute: 30)];
+    expect(Medicine.fromJson(timed.toJson()).clockTimes, const [TimeOfDay(hour: 9, minute: 30)]);
+
+    // History saved before set times existed still reads.
+    final old = IntakeLog.fromJson({
+      'medicineId': 1,
+      'day': friday.toIso8601String(),
+      'anchor': 'breakfast',
+      'status': 'taken',
+      'at': friday.toIso8601String(),
+    });
+    expect(old.slot, const Slot.anchor(Anchor.breakfast));
     expect(back.anchors, m.anchors);
     expect(back.endDate, saturday);
     expect(back.photoPath, '/x.jpg');

@@ -142,7 +142,7 @@ class AppState extends ChangeNotifier {
     logs.add(IntakeLog(
       medicineId: key.medicineId,
       day: key.day,
-      anchor: key.anchor,
+      slot: key.slot,
       status: status,
       at: at ?? DateTime.now(),
     ));

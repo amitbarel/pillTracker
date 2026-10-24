@@ -198,7 +198,7 @@ class Reminders {
         if (!dose.time.isAfter(now)) continue;
         if (state.logFor(dose.key) != null) continue;
         await _schedule(
-          id: dose.medicine.id * 10000 + offset * 10 + dose.anchor.index,
+          id: dose.medicine.id * 10000 + offset * 10 + dose.medicine.slotIndex(dose.slot),
           when: dose.time,
           dose: dose.key,
           medicine: dose.medicine,
@@ -238,7 +238,7 @@ class Reminders {
       title: medicine.name,
       body: s.f('notificationBody', {
         'dose': medicine.dose,
-        'when': whenText(s, dose.anchor, medicine.food),
+        'when': whenText(s, dose.slot, medicine.food),
       }),
       payload: dose.toString(),
     );
@@ -248,7 +248,7 @@ class Reminders {
     final m = state.medicine(dose.medicineId);
     if (m == null) return;
     await _schedule(
-      id: _keepFrom + m.id * 10 + dose.anchor.index,
+      id: _keepFrom + m.id * 10 + m.slotIndex(dose.slot),
       when: DateTime.now().add(const Duration(minutes: snoozeMinutes)),
       dose: dose,
       medicine: m,
@@ -258,7 +258,8 @@ class Reminders {
 
   /// Removes a reminder that is showing, and any snooze for it.
   Future<void> dismiss(DoseKey dose) async {
-    await _plugin.cancel(id: _keepFrom + dose.medicineId * 10 + dose.anchor.index);
+    final index = state.medicine(dose.medicineId)?.slotIndex(dose.slot) ?? 0;
+    await _plugin.cancel(id: _keepFrom + dose.medicineId * 10 + index);
     final active = await _android?.getActiveNotifications() ?? [];
     for (final n in active) {
       if (n.payload == dose.toString() && n.id != null) {
