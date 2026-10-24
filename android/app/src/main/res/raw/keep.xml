@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The reminder notifications use the launcher icon; keep it in release builds. -->
+<!-- The reminders name this icon only from Dart, so keep it in release builds. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@mipmap/ic_launcher" />
+    tools:keep="@drawable/ic_notification" />
