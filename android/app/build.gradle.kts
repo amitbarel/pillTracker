@@ -70,4 +70,5 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
 }

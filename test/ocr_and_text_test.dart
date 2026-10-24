@@ -28,6 +28,44 @@ void main() {
       expect(nameCandidates(lines), ['Acamol']);
     });
 
+    test('Given unsure or garbled lines, Then they are skipped', () {
+      final names = nameCandidates([
+        TextLine('lIlI1| IIl', 90), // Hebrew read as Latin
+        TextLine('XRTZQ', 80), // no vowels
+        TextLine('Nurofen', 70, confidence: 0.3),
+        TextLine('Optalgin', 50, confidence: 0.9),
+        TextLine('Dipyrone', 30),
+      ]);
+      expect(names, ['Optalgin', 'Dipyrone']);
+    });
+
+    test('Given a Hebrew box, Then the Hebrew name and its strength are found', () {
+      final names = nameCandidates([
+        TextLine('אופטלגין', 80, confidence: 0.9),
+        TextLine('500 מ"ג', 40, confidence: 0.85),
+        TextLine('20 טבליות', 30, confidence: 0.9),
+        TextLine('ןםפךצ', 60, confidence: 0.4), // English read as Hebrew
+      ]);
+      expect(names.first, 'אופטלגין 500 מ"ג');
+      expect(names, isNot(contains('20 טבליות')));
+      expect(names, isNot(contains('ןםפךצ')));
+    });
+
+    test('Given a Hebrew box read with noise, Then its name comes first', () {
+      // A made-up box, misread the way the Hebrew reader misreads real ones.
+      final names = nameCandidates([
+        TextLine('| דוגמזול פארמקו', 80, confidence: 0.84),
+        TextLine('\\במת |ב> 9', 71, confidence: 0.29),
+        TextLine('דוגמזול 0', 91, confidence: 0.57),
+        TextLine('טבליות בשחרור מושהה', 42, confidence: 0.92),
+        TextLine('בעל הרישום: פארמקו בע"מ [', 27, confidence: 0.88),
+        TextLine('ת.ד. 1, עיר לדוגמה, 1234567', 61, confidence: 0.55),
+        TextLine('השש |', 85, confidence: 0.35),
+        TextLine('pharmaco', 50, confidence: 0.95),
+      ]);
+      expect(names.first, 'דוגמזול פארמקו');
+    });
+
     test('nothing readable gives no candidates', () {
       expect(nameCandidates([TextLine('---', 50)]), isEmpty);
     });
