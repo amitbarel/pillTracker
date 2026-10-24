@@ -1,0 +1,39 @@
+name: pill_tracker
+description: "Medicine reminders with weekday and weekend times."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_local_notifications: ^22.3.2
+  flutter_localizations:
+    sdk: flutter
+  flutter_timezone: ^5.1.1
+  google_mlkit_text_recognition: ^0.17.1
+  image_picker: ^1.2.4
+  intl: ^0.20.3
+  path_provider: ^2.1.6
+  share_plus: ^13.3.1
+  timezone: ^0.11.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Rubik covers Hebrew and Latin and stays legible at large sizes.
+  fonts:
+    - family: Rubik
+      fonts:
+        - asset: assets/fonts/Rubik-Regular.ttf
+        - asset: assets/fonts/Rubik-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Rubik-Bold.ttf
+          weight: 700
