@@ -27,6 +27,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # Tesseract's Hebrew model (tessdata_fast), for reading Hebrew boxes.
+    - assets/tessdata/heb.traineddata
 
   # Rubik covers Hebrew and Latin and stays legible at large sizes.
   fonts:

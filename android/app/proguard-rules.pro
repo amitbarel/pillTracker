@@ -4,3 +4,6 @@
 -dontwarn com.google.mlkit.vision.text.devanagari.**
 -dontwarn com.google.mlkit.vision.text.japanese.**
 -dontwarn com.google.mlkit.vision.text.korean.**
+
+# Tesseract calls back into these classes from native code.
+-keep class com.googlecode.tesseract.android.** { *; }

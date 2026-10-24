@@ -3,9 +3,9 @@
 A simple medicine reminder for Android, in Hebrew and English.
 
 - **Add a medicine by photo.** Take a picture of the box and tap the name the
-  app reads off it (on the phone, with Google ML Kit). Hebrew text can't be
-  read automatically, so the English name on the box is offered; it can be
-  edited freely.
+  app reads off it. Reading happens on the phone, with no internet: Google
+  ML Kit for English and Tesseract for Hebrew (Android only for now). The
+  name can always be edited.
 - **Plain instructions.** "Twice a day", "after food", for how many days.
 - **Weekday and weekend times.** Doses are tied to wake-up, meals and bedtime.
   Set those once for weekdays and once for weekends (an hour later by

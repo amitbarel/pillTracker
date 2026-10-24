@@ -28,6 +28,29 @@ void main() {
       expect(nameCandidates(lines), ['Acamol']);
     });
 
+    test('Given unsure or garbled lines, Then they are skipped', () {
+      final names = nameCandidates([
+        TextLine('lIlI1| IIl', 90), // Hebrew read as Latin
+        TextLine('XRTZQ', 80), // no vowels
+        TextLine('Nurofen', 70, confidence: 0.3),
+        TextLine('Optalgin', 50, confidence: 0.9),
+        TextLine('Dipyrone', 30),
+      ]);
+      expect(names, ['Optalgin', 'Dipyrone']);
+    });
+
+    test('Given a Hebrew box, Then the Hebrew name and its strength are found', () {
+      final names = nameCandidates([
+        TextLine('אופטלגין', 80, confidence: 0.9),
+        TextLine('500 מ"ג', 40, confidence: 0.85),
+        TextLine('20 טבליות', 30, confidence: 0.9),
+        TextLine('ןםפךצ', 60, confidence: 0.4), // English read as Hebrew
+      ]);
+      expect(names.first, 'אופטלגין 500 מ"ג');
+      expect(names, isNot(contains('20 טבליות')));
+      expect(names, isNot(contains('ןםפךצ')));
+    });
+
     test('nothing readable gives no candidates', () {
       expect(nameCandidates([TextLine('---', 50)]), isEmpty);
     });
