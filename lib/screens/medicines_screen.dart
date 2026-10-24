@@ -17,8 +17,9 @@ class MedicinesScreen extends StatelessWidget {
     final medicines = Scope.of(context).state.medicines;
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const EditMedicineScreen())),
+        onPressed: () =>
+            Navigator.of(context)
+                .push(MaterialPageRoute<void>(builder: (_) => const EditMedicineScreen())),
         icon: const Icon(Icons.add),
         label: Text(s['addMedicine']),
       ),
@@ -61,32 +62,43 @@ class _MedicineCard extends StatelessWidget {
     final m = medicine;
     final end = m.endDate;
     final finished = end != null && !m.isActiveOn(DateTime.now());
+    final large = largeText(context);
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-            builder: (_) => EditMedicineScreen(medicine: m))),
+        onTap: () =>
+            Navigator.of(context)
+                .push(MaterialPageRoute<void>(builder: (_) => EditMedicineScreen(medicine: m))),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(children: [
-            MedicinePhoto(path: m.photoPath, size: 72, heroTag: MedicinePhoto.tagFor(m.id)),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(m.name, style: text.titleMedium),
-                  Text('${m.dose} · ${instructionText(s, m)}', style: text.bodyLarge!.copyWith(fontSize: 16)),
-                  if (end != null)
-                    Text(
-                      s.f('untilDate', {'date': shortDate(s, end)}),
-                      style: text.bodyMedium!.copyWith(color: finished ? c.warn : null),
-                    ),
-                ],
+          child: Row(
+            children: [
+              MedicinePhoto(
+                path: m.photoPath,
+                size: large ? 48 : 72,
+                heroTag: MedicinePhoto.tagFor(m.id),
               ),
-            ),
-            Icon(Icons.chevron_right, color: c.muted),
-          ]),
+              SizedBox(width: large ? 10 : 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(m.name, style: text.titleMedium),
+                    Text(
+                      '${m.dose} · ${instructionText(s, m)}',
+                      style: text.bodyLarge!.copyWith(fontSize: 16),
+                    ),
+                    if (end != null)
+                      Text(
+                        s.f('untilDate', {'date': shortDate(s, end)}),
+                        style: text.bodyMedium!.copyWith(color: finished ? c.warn : null),
+                      ),
+                  ],
+                ),
+              ),
+              if (!large) Icon(Icons.chevron_right, color: c.muted),
+            ],
+          ),
         ),
       ),
     );

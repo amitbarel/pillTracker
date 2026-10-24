@@ -18,7 +18,7 @@ void main() {
 
   Medicine paracetamol(AppState state) => Medicine(
         id: state.newMedicineId(),
-        name: 'Paracetamol',
+        name: 'Fictivol',
         anchors: Preset.twice.anchors,
         startDate: DateTime(2026, 10, 1),
       );
@@ -37,14 +37,14 @@ void main() {
       final state = await AppState.loadFrom(file);
       final m = paracetamol(state);
       await state.saveMedicine(m);
-      final key = DoseKey(m.id, DateTime(2026, 10, 24), Anchor.breakfast);
+      final key = DoseKey(m.id, DateTime(2026, 10, 24), const Slot.anchor(Anchor.breakfast));
       await state.record(key, IntakeStatus.taken, at: DateTime(2026, 10, 24, 8, 5));
       await state.setRoutine(state.routine.copyWith(weekendDays: {5, 6}));
       await state.setLanguage('he');
 
       final reloaded = await AppState.loadFrom(file);
 
-      expect(reloaded.medicines.single.name, 'Paracetamol');
+      expect(reloaded.medicines.single.name, 'Fictivol');
       expect(reloaded.logFor(key)!.at, DateTime(2026, 10, 24, 8, 5));
       expect(reloaded.routine.weekendDays, {5, 6});
       expect(reloaded.languageCode, 'he');
@@ -75,7 +75,7 @@ void main() {
   group('AppState answers', () {
     test('Given a dose marked taken, When marked skipped, Then only the latest answer is kept', () async {
       final state = AppState.memory();
-      final key = DoseKey(1, DateTime(2026, 10, 24), Anchor.dinner);
+      final key = DoseKey(1, DateTime(2026, 10, 24), const Slot.anchor(Anchor.dinner));
 
       await state.record(key, IntakeStatus.taken);
       await state.record(key, IntakeStatus.skipped);
@@ -86,7 +86,7 @@ void main() {
 
     test('Given an answered dose, When cleared, Then it has no answer', () async {
       final state = AppState.memory();
-      final key = DoseKey(1, DateTime(2026, 10, 24), Anchor.dinner);
+      final key = DoseKey(1, DateTime(2026, 10, 24), const Slot.anchor(Anchor.dinner));
       await state.record(key, IntakeStatus.taken);
 
       await state.clearRecord(key);
@@ -100,7 +100,7 @@ void main() {
       state.onScheduleChanged = () => calls++;
 
       await state.saveMedicine(paracetamol(state));
-      await state.record(DoseKey(1, DateTime(2026, 10, 24), Anchor.dinner), IntakeStatus.taken);
+      await state.record(DoseKey(1, DateTime(2026, 10, 24), const Slot.anchor(Anchor.dinner)), IntakeStatus.taken);
       await state.setRoutine(state.routine);
 
       expect(calls, 3);

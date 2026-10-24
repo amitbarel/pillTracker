@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pill_tracker/describe.dart';
 import 'package:pill_tracker/l10n.dart';
@@ -9,44 +10,44 @@ void main() {
     test('the biggest print wins and a strength below it is joined', () {
       final lines = [
         TextLine('Rx only', 10),
-        TextLine('PARACETAMOL', 60),
+        TextLine('FICTIVOL', 60),
         TextLine('500 MG', 30),
         TextLine('20 tablets', 20),
         TextLine('Pain relief', 18),
         TextLine('EXP 03/2027', 8),
       ];
-      expect(nameCandidates(lines), ['Paracetamol 500 mg', 'Pain relief']);
+      expect(nameCandidates(lines), ['Fictivol 500 mg', 'Pain relief']);
     });
 
     test('duplicates and junk are dropped', () {
       final lines = [
-        TextLine('Acamol', 50),
-        TextLine('ACAMOL', 40),
+        TextLine('Testamol', 50),
+        TextLine('TESTAMOL', 40),
         TextLine('12', 45),
         TextLine('Film-coated', 30),
       ];
-      expect(nameCandidates(lines), ['Acamol']);
+      expect(nameCandidates(lines), ['Testamol']);
     });
 
     test('Given unsure or garbled lines, Then they are skipped', () {
       final names = nameCandidates([
         TextLine('lIlI1| IIl', 90), // Hebrew read as Latin
         TextLine('XRTZQ', 80), // no vowels
-        TextLine('Nurofen', 70, confidence: 0.3),
-        TextLine('Optalgin', 50, confidence: 0.9),
-        TextLine('Dipyrone', 30),
+        TextLine('Dummofen', 70, confidence: 0.3),
+        TextLine('Mockalgin', 50, confidence: 0.9),
+        TextLine('Placebone', 30),
       ]);
-      expect(names, ['Optalgin', 'Dipyrone']);
+      expect(names, ['Mockalgin', 'Placebone']);
     });
 
     test('Given a Hebrew box, Then the Hebrew name and its strength are found', () {
       final names = nameCandidates([
-        TextLine('אופטלגין', 80, confidence: 0.9),
+        TextLine('מוקלגין', 80, confidence: 0.9),
         TextLine('500 מ"ג', 40, confidence: 0.85),
         TextLine('20 טבליות', 30, confidence: 0.9),
         TextLine('ןםפךצ', 60, confidence: 0.4), // English read as Hebrew
       ]);
-      expect(names.first, 'אופטלגין 500 מ"ג');
+      expect(names.first, 'מוקלגין 500 מ"ג');
       expect(names, isNot(contains('20 טבליות')));
       expect(names, isNot(contains('ןםפךצ')));
     });
@@ -94,7 +95,18 @@ void main() {
     );
     expect(instructionText(const S('en'), m), 'Twice a day, after food');
     expect(instructionText(const S('he'), m), 'פעמיים ביום, אחרי האוכל');
-    expect(whenText(const S('en'), Anchor.dinner, FoodRelation.before), 'before dinner');
-    expect(whenText(const S('en'), Anchor.wake, FoodRelation.before), 'On waking');
+    expect(whenText(const S('en'), const Slot.anchor(Anchor.dinner), FoodRelation.before), 'before dinner');
+    expect(whenText(const S('en'), const Slot.anchor(Anchor.wake), FoodRelation.before), 'On waking');
+    const nine = Slot.clock(TimeOfDay(hour: 9, minute: 0));
+    expect(whenText(const S('en'), nine, FoodRelation.after), 'at 9:00');
+    expect(whenText(const S('he'), nine, FoodRelation.after), 'בשעה 9:00');
+    final timed = Medicine(
+      id: 2,
+      name: 'x',
+      anchors: {},
+      clockTimes: const [TimeOfDay(hour: 9, minute: 0)],
+      startDate: DateTime(2026),
+    );
+    expect(instructionText(const S('en'), timed), 'Once a day · 9:00');
   });
 }

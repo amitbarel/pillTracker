@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'l10n.dart';
 import 'models.dart';
 import 'notifications.dart';
+import 'screens/common.dart';
 import 'screens/dose_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/medicines_screen.dart';
@@ -136,6 +137,7 @@ class _PillAppState extends State<PillApp> with WidgetsBindingObserver {
           if (code == 'he' || code == 'iw') return const Locale('he');
           return const Locale('en');
         },
+        builder: (context, child) => TextSizeLimit(child: child!),
         home: const HomeScreen(),
       ),
     );

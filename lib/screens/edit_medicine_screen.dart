@@ -29,6 +29,9 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
   late final TextEditingController _dose;
   late final TextEditingController _notes;
   late Set<Anchor> _anchors;
+
+  /// Times the person sets themselves, beside the routine ones.
+  late List<TimeOfDay> _clockTimes;
   late FoodRelation _food;
   DateTime? _endDate;
   String? _photoPath;
@@ -44,6 +47,10 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
   /// How many times a day, from "How often?". The times chosen must match it.
   late int _perDay;
 
+  /// Weekdays to take it on, or null for every day.
+  Set<int>? _days;
+  bool _showDaysError = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,10 +60,30 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
     _notes = TextEditingController(text: m?.notes ?? '');
     _anchors = {...?m?.anchors};
     if (m == null) _anchors = {...Preset.twice.anchors};
-    _perDay = _anchors.isEmpty ? 1 : _anchors.length;
+    _clockTimes = [...?m?.clockTimes];
+    _perDay = _chosen == 0 ? 1 : _chosen;
+    _days = m?.days == null ? null : {...m!.days!};
     _food = m?.food ?? FoodRelation.after;
     _endDate = m?.endDate;
     _photoPath = m?.photoPath;
+  }
+
+  int get _chosen => _anchors.length + _clockTimes.length;
+
+  /// Picks a time of the person's own on the clock. Once a day, it replaces
+  /// whatever was chosen.
+  Future<void> _addClockTime() async {
+    final t = await pickClockTime(context, const TimeOfDay(hour: 9, minute: 0));
+    if (t == null || !mounted) return;
+    setState(() {
+      if (_perDay == 1) {
+        _anchors = {};
+        _clockTimes = [t];
+      } else {
+        _clockTimes = sortedTimes([..._clockTimes, t]);
+      }
+      _showAnchorError = false;
+    });
   }
 
   @override
@@ -146,6 +173,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
       final times = found.times;
       if (times != null) {
         _anchors = {...times};
+        _clockTimes = [];
         _perDay = times.length;
         _showAnchorError = false;
       }
@@ -165,9 +193,13 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
 
   Future<void> _save() async {
     final validName = _form.currentState!.validate();
-    final timesOk = _anchors.length == _perDay;
-    setState(() => _showAnchorError = !timesOk);
-    if (!validName || !timesOk) return;
+    final timesOk = _chosen == _perDay;
+    final daysOk = _days == null || _days!.isNotEmpty;
+    setState(() {
+      _showAnchorError = !timesOk;
+      _showDaysError = !daysOk;
+    });
+    if (!validName || !timesOk || !daysOk) return;
     final state = Scope.of(context).state;
     final old = widget.medicine;
     final m = Medicine(
@@ -178,10 +210,13 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
           ? S.of(context)['defaultDose']
           : _dose.text.trim(),
       anchors: _anchors,
+      clockTimes: _clockTimes,
       food: _food,
       notes: _notes.text.trim(),
       startDate: old?.startDate ?? dateOnly(DateTime.now()),
       endDate: _endDate,
+      days: _days,
+      addedAt: old == null ? DateTime.now() : old.addedAt,
     );
     // Clean up photos replaced while editing.
     for (final p in [..._newPhotos, ?old?.photoPath]) {
@@ -239,9 +274,9 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
     final routine = Scope.of(context).state.routine;
     // "At bedtime" and "Once a day" are both one time a day; the chosen times
     // say which one is meant.
-    final selectedPreset = Preset.matching(_anchors) ??
+    final selectedPreset = (_clockTimes.isEmpty ? Preset.matching(_anchors) : null) ??
         Preset.values.where((p) => p != Preset.bedtime && p.anchors.length == _perDay).firstOrNull;
-    final full = _anchors.length >= _perDay;
+    final full = _chosen >= _perDay;
     final hasMeal = _anchors.any((a) => a.isMeal);
     final text = Theme.of(context).textTheme;
     final field = text.titleMedium!.copyWith(fontWeight: FontWeight.w400);
@@ -328,6 +363,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
                     selected: selectedPreset == p,
                     onSelected: (_) => setState(() {
                       _anchors = {...p.anchors};
+                      _clockTimes = [];
                       _perDay = p.anchors.length;
                       _showAnchorError = false;
                     }),
@@ -337,7 +373,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
               Text(
                   _perDay == 1
                       ? s['pickOneTime']
-                      : s.f('pickTimes', {'n': _perDay, 'chosen': _anchors.length}),
+                      : s.f('pickTimes', {'n': _perDay, 'chosen': _chosen}),
                   style: text.bodyMedium),
               const SizedBox(height: 6),
               Wrap(spacing: 8, runSpacing: 8, children: [
@@ -353,6 +389,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
                         : (on) => setState(() {
                               if (on && _perDay == 1) {
                                 _anchors = {a};
+                                _clockTimes = [];
                               } else {
                                 _anchors = {..._anchors};
                                 on ? _anchors.add(a) : _anchors.remove(a);
@@ -360,6 +397,24 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
                               _showAnchorError = false;
                             }),
                   ),
+                for (final t in _clockTimes)
+                  InputChip(
+                    key: Key('clock.${clockOfDay(t)}'),
+                    label: Text(clockOfDay(t)),
+                    selected: true,
+                    showCheckmark: false,
+                    avatar: const Icon(Icons.schedule),
+                    deleteButtonTooltipMessage: s['removeTime'],
+                    onDeleted: () => setState(() {
+                      _clockTimes = [..._clockTimes]..remove(t);
+                    }),
+                  ),
+                ActionChip(
+                  key: const Key('otherTime'),
+                  avatar: const Icon(Icons.add),
+                  label: Text(s['otherTime']),
+                  onPressed: full && _perDay > 1 ? null : _addClockTime,
+                ),
               ]),
               if (_showAnchorError)
                 Padding(
@@ -369,6 +424,46 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
                       style: text.bodyMedium!.copyWith(
                           color: Theme.of(context).colorScheme.error)),
                 ),
+              SectionTitle(s['whichDays']),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                ChoiceChip(
+                  key: const Key('allDays'),
+                  label: Text(s['allDays']),
+                  selected: _days == null,
+                  onSelected: (_) => setState(() => _days = null),
+                ),
+                ChoiceChip(
+                  key: const Key('someDays'),
+                  label: Text(s['someDays']),
+                  selected: _days != null,
+                  // Start from today, the usual day for a weekly pill.
+                  onSelected: (_) => setState(() => _days ??= {DateTime.now().weekday}),
+                ),
+              ]),
+              if (_days case final days?) ...[
+                const SizedBox(height: 10),
+                Wrap(spacing: 6, runSpacing: 6, children: [
+                  for (final d in weekOrder)
+                    FilterChip(
+                      key: Key('day.$d'),
+                      showCheckmark: false,
+                      label: Text(weekdayName(s, d)),
+                      selected: days.contains(d),
+                      onSelected: (on) => setState(() {
+                        _days = {...days};
+                        on ? _days!.add(d) : _days!.remove(d);
+                        _showDaysError = false;
+                      }),
+                    ),
+                ]),
+                if (_showDaysError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(s['pickADay'],
+                        style: text.bodyMedium!.copyWith(
+                            color: Theme.of(context).colorScheme.error)),
+                  ),
+              ],
               if (hasMeal) ...[
                 SectionTitle(s['food']),
                 Wrap(spacing: 8, runSpacing: 8, children: [
@@ -380,7 +475,7 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
                     ),
                 ]),
               ],
-              if (_anchors.isNotEmpty) ...[
+              if (_chosen > 0) ...[
                 const SizedBox(height: 18),
                 _preview(s, routine),
               ],
@@ -484,10 +579,12 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
   /// "Reminders will ring at: Weekdays 7:00 and 19:30 …"
   Widget _preview(S s, Routine routine) {
     String times(DayRoutine day) {
-      final list = [
+      final at = [
         for (final a in Anchor.values)
           if (_anchors.contains(a)) _at(day, a),
-      ];
+        for (final t in _clockTimes) DateTime(2000, 1, 1, t.hour, t.minute),
+      ]..sort();
+      final list = at.map(clock).toList();
       if (list.length == 1) return list.first;
       final and = s.isHebrew ? s['and'] : '${s['and']} ';
       return '${list.sublist(0, list.length - 1).join(', ')} $and${list.last}';
@@ -510,12 +607,10 @@ class _EditMedicineScreenState extends State<EditMedicineScreen> {
     );
   }
 
-  String _at(DayRoutine day, Anchor a) {
+  DateTime _at(DayRoutine day, Anchor a) {
     final base = day[a];
     final offset = a.isMeal ? _food.offsetMinutes : 0;
-    final t = DateTime(2000, 1, 1, base.hour, base.minute)
-        .add(Duration(minutes: offset));
-    return clock(t);
+    return DateTime(2000, 1, 1, base.hour, base.minute).add(Duration(minutes: offset));
   }
 
   Widget _previewRow(String label, String value) {

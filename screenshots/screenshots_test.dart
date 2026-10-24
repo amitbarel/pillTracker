@@ -19,8 +19,10 @@ import 'package:pill_tracker/models.dart';
 import 'package:pill_tracker/notifications.dart';
 import 'package:pill_tracker/schedule.dart';
 import 'package:pill_tracker/scope.dart';
+import 'package:pill_tracker/screens/common.dart';
 import 'package:pill_tracker/screens/dose_screen.dart';
 import 'package:pill_tracker/screens/edit_medicine_screen.dart';
+import 'package:pill_tracker/screens/today_screen.dart';
 import 'package:pill_tracker/store.dart';
 
 Future<void> _loadFont(String family, List<String> paths) async {
@@ -60,14 +62,14 @@ void main() {
     final start = today.subtract(const Duration(days: 6));
     await state.saveMedicine(Medicine(
       id: state.newMedicineId(),
-      name: he ? 'קסרלטו 10 מ״ג' : 'Xarelto 10 mg',
+      name: he ? 'אקזמפלור 10 מ״ג' : 'Examplor 10 mg',
       dose: he ? 'כדור אחד' : '1 pill',
       anchors: {Anchor.wake},
       startDate: start,
     ));
     await state.saveMedicine(Medicine(
       id: state.newMedicineId(),
-      name: he ? 'אקמול 500 מ״ג' : 'Paracetamol 500 mg',
+      name: he ? 'טסטמול 500 מ״ג' : 'Fictivol 500 mg',
       dose: he ? '2 כדורים' : '2 pills',
       anchors: Preset.three.anchors,
       startDate: start,
@@ -75,9 +77,17 @@ void main() {
     ));
     await state.saveMedicine(Medicine(
       id: state.newMedicineId(),
-      name: he ? 'צלקוקסיב 200 מ״ג' : 'Celecoxib 200 mg',
+      name: he ? 'סמפלקסיבראט דוגמאי'  : 'Samplexib 200 mg',
       dose: he ? 'כמוסה אחת' : '1 capsule',
       anchors: Preset.twice.anchors,
+      startDate: start,
+    ));
+    await state.saveMedicine(Medicine(
+      id: state.newMedicineId(),
+      name: he ? 'מוקלגין 5 מ״ג' : 'Mockalgin 5 mg',
+      dose: he ? 'כדור אחד' : '1 pill',
+      anchors: {},
+      clockTimes: const [TimeOfDay(hour: 9, minute: 0)],
       startDate: start,
     ));
     // A week of history: everything taken a few minutes late, one miss.
@@ -94,11 +104,15 @@ void main() {
     return state;
   }
 
-  Widget app(AppState state, String lang, Widget home) => Scope(
+  Widget app(AppState state, String lang, Widget home, {double textScale = 1}) => Scope(
         state: state,
         reminders: Reminders(state),
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: TextSizeLimit(child: child!),
+          ),
           theme: buildTheme(),
           locale: Locale(lang),
           supportedLocales: S.supported,
@@ -117,6 +131,12 @@ void main() {
       await tester.pumpWidget(app(state, lang, const HomeScreen()));
       await tester.pumpAndSettle();
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_1_today.png'));
+      // Answering a dose: on time, now, or at another time.
+      await tester.tap(find.byType(DoseTile).first);
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_1b_tookit.png'));
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
       final tabs = [
         (Icons.medication_outlined, 'medicines'),
         (Icons.calendar_month_outlined, 'history'),
@@ -134,16 +154,30 @@ void main() {
       await tester.tap(find.byType(TextButton).first); // Cancel
       await tester.pumpAndSettle();
 
-      await tester.pumpWidget(app(state, lang, EditMedicineScreen(medicine: state.medicines[1])));
+      await tester.pumpWidget(app(state, lang, EditMedicineScreen(key: const ValueKey(1), medicine: state.medicines[1])));
       await tester.pumpAndSettle();
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_5_edit.png'));
 
       // Once a day: one time only.
-      await tester.pumpWidget(app(state, lang, EditMedicineScreen(medicine: state.medicines[0])));
+      await tester.pumpWidget(app(state, lang, EditMedicineScreen(key: const ValueKey(0), medicine: state.medicines[0])));
       await tester.pumpAndSettle();
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -260));
       await tester.pumpAndSettle();
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_5b_once.png'));
+      final someDays = find.byKey(const Key('someDays'));
+      await tester.dragUntilVisible(someDays, find.byType(ListView), const Offset(0, -150));
+      await tester.tap(someDays);
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -200));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_5c_days.png'));
+
+      // A time of the person's own, beside the routine times.
+      await tester.pumpWidget(app(state, lang, EditMedicineScreen(key: const ValueKey(3), medicine: state.medicines[3])));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -260));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_5d_clocktime.png'));
 
       final dose = dosesForDay(state.routine, state.medicines, DateTime.now())[1];
       await tester.pumpWidget(app(state, lang, DoseScreen(dose: dose.key)));
@@ -151,4 +185,25 @@ void main() {
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_6_alarm.png'));
     });
   }
+
+  // The phone's largest font size, as many older people use it.
+  testWidgets('large text he', (tester) async {
+    tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final state = await sample('he');
+    await tester.pumpWidget(app(state, 'he', const HomeScreen(), textScale: 2));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/large_1_today.png'));
+    for (final (i, (icon, name)) in [
+      (Icons.medication_outlined, 'medicines'),
+      (Icons.calendar_month_outlined, 'history'),
+    ].indexed) {
+      await tester.tap(find.byIcon(icon));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/large_${i + 2}_$name.png'));
+    }
+  });
 }

@@ -13,6 +13,7 @@ import 'package:pill_tracker/schedule.dart';
 import 'package:pill_tracker/scope.dart';
 import 'package:pill_tracker/screens/dose_screen.dart';
 import 'package:pill_tracker/screens/edit_medicine_screen.dart';
+import 'package:pill_tracker/screens/today_screen.dart';
 import 'package:pill_tracker/store.dart';
 
 /// Renders every screen in English and Hebrew on a small phone, so layout
@@ -44,7 +45,7 @@ void main() {
     final today = dateOnly(DateTime.now());
     await state.saveMedicine(Medicine(
       id: state.newMedicineId(),
-      name: 'Paracetamol 500 mg',
+      name: 'Fictivol 500 mg',
       dose: '2 pills',
       anchors: Preset.three.anchors,
       startDate: today.subtract(const Duration(days: 5)),
@@ -52,7 +53,7 @@ void main() {
     ));
     await state.saveMedicine(Medicine(
       id: state.newMedicineId(),
-      name: 'Xarelto 10 mg',
+      name: 'Examplor 10 mg',
       anchors: {Anchor.wake},
       startDate: today.subtract(const Duration(days: 5)),
       notes: 'Blood thinner after the knee surgery',
@@ -93,7 +94,7 @@ void main() {
       // The list builds lazily, so scroll it all the way to lay out every dose.
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -3000));
       await tester.pumpAndSettle();
-      expect(find.text('Paracetamol 500 mg'), findsWidgets);
+      expect(find.text('Fictivol 500 mg'), findsWidgets);
       for (final icon in [
         Icons.medication_outlined,
         Icons.calendar_month_outlined,
@@ -140,12 +141,12 @@ void main() {
     await tester.pumpWidget(app(state, 'en', const EditMedicineScreen()));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byKey(const Key('nameField')), 'Acamol');
+    await tester.enterText(find.byKey(const Key('nameField')), 'Testamol');
     await tester.tap(find.byKey(const Key('save')));
     await tester.pumpAndSettle();
 
     final m = state.medicines.single;
-    expect(m.name, 'Acamol');
+    expect(m.name, 'Testamol');
     expect(m.anchors, Preset.twice.anchors);
     expect(m.food, FoodRelation.after);
     expect(m.dose, '1 pill');
@@ -156,7 +157,7 @@ void main() {
     final state = AppState.memory();
     await tester.pumpWidget(app(state, 'en', const EditMedicineScreen()));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('nameField')), 'Acamol');
+    await tester.enterText(find.byKey(const Key('nameField')), 'Testamol');
 
     // Twice a day starts selected: untick both of its times.
     for (final a in [Anchor.breakfast, Anchor.dinner]) {
@@ -179,7 +180,7 @@ void main() {
     final state = AppState.memory();
     await tester.pumpWidget(app(state, 'en', const EditMedicineScreen()));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('nameField')), 'Acamol');
+    await tester.enterText(find.byKey(const Key('nameField')), 'Testamol');
     await tester.tap(find.text('Once a day'));
     await tester.pumpAndSettle();
 
@@ -211,6 +212,71 @@ void main() {
     await tester.tap(find.byKey(const Key('anchor.dinner')));
     await tester.pumpAndSettle();
     expect(tester.widget<FilterChip>(lunch).onSelected, isNotNull);
+  });
+
+  testWidgets('Given once a day, When a time of my own is set on the clock, Then it replaces the routine time', (tester) async {
+    phoneSize(tester);
+    final state = AppState.memory();
+    await tester.pumpWidget(app(state, 'en', const EditMedicineScreen()));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('nameField')), 'Testamol');
+    await tester.tap(find.text('Once a day'));
+    await tester.pumpAndSettle();
+
+    final other = find.byKey(const Key('otherTime'));
+    await tester.dragUntilVisible(other, find.byType(ListView), const Offset(0, -150));
+    await tester.ensureVisible(other);
+    await tester.pumpAndSettle();
+    await tester.tap(other);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK')); // The clock opens at 9:00.
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clock.9:00')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('save')));
+    await tester.pumpAndSettle();
+
+    final m = state.medicines.single;
+    expect(m.anchors, isEmpty);
+    expect(m.clockTimes, const [TimeOfDay(hour: 9, minute: 0)]);
+  });
+
+  testWidgets('Given twice a day with two times chosen, Then another time of my own cannot be added', (tester) async {
+    phoneSize(tester);
+    await tester.pumpWidget(app(AppState.memory(), 'en', const EditMedicineScreen()));
+    await tester.pumpAndSettle();
+    final other = find.byKey(const Key('otherTime'));
+    await tester.dragUntilVisible(other, find.byType(ListView), const Offset(0, -150));
+    expect(tester.widget<ActionChip>(other).onPressed, isNull);
+  });
+
+  testWidgets('Given some days, When Monday and Thursday are picked, Then only those days are saved', (tester) async {
+    phoneSize(tester);
+    final state = AppState.memory();
+    await tester.pumpWidget(app(state, 'en', const EditMedicineScreen()));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('nameField')), 'Testamol');
+
+    Future<void> tap(Finder f) async {
+      await tester.dragUntilVisible(f, find.byType(ListView), const Offset(0, -150));
+      await tester.ensureVisible(f);
+      await tester.pumpAndSettle();
+      await tester.tap(f);
+      await tester.pumpAndSettle();
+    }
+
+    await tap(find.byKey(const Key('someDays')));
+    // Some days starts with today ticked: untick it, keep only Monday and Thursday.
+    final today = DateTime.now().weekday;
+    if (today != DateTime.monday && today != DateTime.thursday) {
+      await tap(find.byKey(Key('day.$today')));
+    }
+    for (final d in [DateTime.monday, DateTime.thursday]) {
+      if (d != today) await tap(find.byKey(Key('day.$d')));
+    }
+    await tester.tap(find.byKey(const Key('save')));
+    await tester.pumpAndSettle();
+
+    expect(state.medicines.single.days, {DateTime.monday, DateTime.thursday});
   });
 
   group('alarm screen', () {
@@ -261,6 +327,60 @@ void main() {
       final scheduled = calls.where((c) => c.method == 'zonedSchedule');
       expect(scheduled, hasLength(1));
       expect((scheduled.single.arguments as Map)['payload'], dose.toString());
+    });
+  });
+  group('took it sheet', () {
+    /// Yesterday's second dose of Fictivol: past and not answered yet.
+    Future<(AppState, Dose)> open(WidgetTester tester) async {
+      final state = await sampleState();
+      final yesterday = dateOnly(DateTime.now()).subtract(const Duration(days: 1));
+      final dose = dosesForDay(state.routine, state.medicines, yesterday)
+          .firstWhere((d) => state.logFor(d.key) == null);
+      await tester.pumpWidget(app(state, 'en', Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => showDoseAnswers(context, dose, DoseState.missed),
+            child: const Text('open'),
+          ),
+        ),
+      )));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      return (state, dose);
+    }
+
+    testWidgets('Given a missed dose, When I took it on time is tapped, Then it is logged at the dose time', (tester) async {
+      final (state, dose) = await open(tester);
+
+      await tester.tap(find.byKey(const Key('tookOnTime')));
+      await tester.pumpAndSettle();
+
+      final log = state.logFor(dose.key)!;
+      expect(log.status, IntakeStatus.taken);
+      expect(log.at, dose.time);
+    });
+
+    testWidgets('Given a missed dose, When I took it now is tapped, Then it is logged now', (tester) async {
+      final (state, dose) = await open(tester);
+      final before = DateTime.now();
+
+      await tester.tap(find.byKey(const Key('tookNow')));
+      await tester.pumpAndSettle();
+
+      expect(state.logFor(dose.key)!.at.isBefore(before), isFalse);
+    });
+
+    testWidgets('Given a missed dose, When a time is picked on the clock, Then it is logged at that time', (tester) async {
+      final (state, dose) = await open(tester);
+
+      await tester.tap(find.byKey(const Key('tookAt')));
+      await tester.pumpAndSettle();
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      // The clock opens at the dose time, so OK keeps it.
+      expect(state.logFor(dose.key)!.at, dose.time);
     });
   });
 }

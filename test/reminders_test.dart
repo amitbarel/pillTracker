@@ -41,7 +41,7 @@ void main() {
     final state = AppState.memory();
     await state.saveMedicine(Medicine(
       id: 7,
-      name: 'Paracetamol',
+      name: 'Fictivol',
       anchors: anchors,
       startDate: DateTime(2020),
       endDate: end,
@@ -58,14 +58,14 @@ void main() {
       final doses = scheduled().where(isDose);
       // Today's dose may already have passed.
       expect(doses.length, inInclusiveRange(Reminders.daysAhead - 1, Reminders.daysAhead));
-      expect(doses.every((a) => (a['title'] as String) == 'Paracetamol'), isTrue);
+      expect(doses.every((a) => (a['title'] as String) == 'Fictivol'), isTrue);
       expect(scheduled().where((a) => !isDose(a)), hasLength(1));
     });
 
     test('Given a dose already taken, When rescheduled, Then that dose does not ring', () async {
       final state = await withMedicine({Anchor.bedtime});
       final tomorrow = DateTime.now().add(const Duration(days: 1));
-      final key = DoseKey(7, tomorrow, Anchor.bedtime);
+      final key = DoseKey(7, tomorrow, const Slot.anchor(Anchor.bedtime));
       await state.record(key, IntakeStatus.taken);
       calls.clear();
 

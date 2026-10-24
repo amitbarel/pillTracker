@@ -4,32 +4,37 @@ import 'models.dart';
 
 /// One expected dose on a specific day.
 class Dose {
-  Dose(this.medicine, this.day, this.anchor, this.time);
+  Dose(this.medicine, this.day, this.slot, this.time);
 
   final Medicine medicine;
   final DateTime day;
-  final Anchor anchor;
+  final Slot slot;
   final DateTime time;
 
-  DoseKey get key => DoseKey(medicine.id, day, anchor);
+  DoseKey get key => DoseKey(medicine.id, day, slot);
 }
 
-/// Clock time of [anchor] for [medicine] on [day], following the routine.
-DateTime doseTime(Routine routine, Medicine medicine, DateTime day, Anchor anchor) {
-  final TimeOfDay base = routine.forDay(day)[anchor];
-  final offset = anchor.isMeal ? medicine.food.offsetMinutes : 0;
+/// Clock time of [slot] for [medicine] on [day]. Routine times follow the
+/// routine and the food rule; a set time is exactly that time.
+DateTime doseTime(Routine routine, Medicine medicine, DateTime day, Slot slot) {
+  final anchor = slot.anchor;
+  final TimeOfDay base = anchor == null ? slot.time! : routine.forDay(day)[anchor];
+  final offset = anchor != null && anchor.isMeal ? medicine.food.offsetMinutes : 0;
   return DateTime(day.year, day.month, day.day, base.hour, base.minute)
       .add(Duration(minutes: offset));
 }
 
-/// All doses due on [day], sorted by time.
+/// All doses due on [day], sorted by time. Doses from before a medicine was
+/// added are left out: nobody was asked to take them.
 List<Dose> dosesForDay(Routine routine, List<Medicine> medicines, DateTime day) {
   final d = dateOnly(day);
   final doses = <Dose>[
     for (final m in medicines)
       if (m.isActiveOn(d))
-        for (final a in Anchor.values)
-          if (m.anchors.contains(a)) Dose(m, d, a, doseTime(routine, m, d, a)),
+        for (final slot in m.slots)
+            if (Dose(m, d, slot, doseTime(routine, m, d, slot)) case final dose
+                when m.addedAt == null || !dose.time.isBefore(m.addedAt!))
+              dose,
   ];
   doses.sort((a, b) {
     final c = a.time.compareTo(b.time);
@@ -52,11 +57,11 @@ DoseState doseState(Dose dose, IntakeLog? log, DateTime now) {
   return DoseState.missed;
 }
 
-/// Which day a reminder for [anchor] belongs to when it is answered at [now].
+/// Which day a reminder for [slot] belongs to when it is answered at [now].
 /// A bedtime dose answered just after midnight still belongs to yesterday.
-DateTime doseDayFor(Routine routine, Medicine medicine, Anchor anchor, DateTime now) {
+DateTime doseDayFor(Routine routine, Medicine medicine, Slot slot, DateTime now) {
   final today = dateOnly(now);
-  final todayTime = doseTime(routine, medicine, today, anchor);
+  final todayTime = doseTime(routine, medicine, today, slot);
   if (now.isBefore(todayTime.subtract(const Duration(hours: 3)))) {
     return today.subtract(const Duration(days: 1));
   }
