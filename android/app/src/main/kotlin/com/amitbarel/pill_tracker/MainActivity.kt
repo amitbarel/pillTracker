@@ -34,35 +34,54 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    /** Lines of Hebrew text with their print height and confidence (0 to 1). */
+    /**
+     * Lines of Hebrew text with their print height and confidence (0 to 1).
+     *
+     * Tesseract copes with sideways text but not upside-down text, so the photo
+     * is read both ways up and the reading with more confident text wins.
+     */
     private fun readHebrew(imagePath: String, dataPath: String): List<Map<String, Any>> {
-        val bitmap = uprightBitmap(imagePath)
+        val upright = uprightBitmap(imagePath)
+        val flipped = rotated(upright, 180f)
         val api = TessBaseAPI()
         try {
             if (!api.init(dataPath, "heb")) throw IllegalStateException("Hebrew model missing")
             api.pageSegMode = TessBaseAPI.PageSegMode.PSM_AUTO
-            api.setImage(bitmap)
-            api.getUTF8Text() // runs recognition
-            val lines = mutableListOf<Map<String, Any>>()
-            val it = api.resultIterator ?: return lines
-            val level = TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE
-            it.begin()
-            do {
-                val text = it.getUTF8Text(level)?.trim().orEmpty()
-                if (text.isEmpty()) continue
-                val box = it.getBoundingRect(level)
-                lines += mapOf(
-                    "text" to text,
-                    "height" to minOf(box.width(), box.height()).toDouble(),
-                    "confidence" to it.confidence(level) / 100.0,
-                )
-            } while (it.next(level))
-            it.delete()
-            return lines
+            return listOf(upright, flipped)
+                .map { readLines(api, it) }
+                .maxBy { lines -> lines.sumOf { score(it) } }
         } finally {
             api.recycle()
-            bitmap.recycle()
+            upright.recycle()
+            flipped.recycle()
         }
+    }
+
+    /** Confident characters read; misread text scores near zero. */
+    private fun score(line: Map<String, Any>): Double {
+        val confidence = line["confidence"] as Double
+        return if (confidence < 0.6) 0.0 else (line["text"] as String).length * confidence
+    }
+
+    private fun readLines(api: TessBaseAPI, bitmap: Bitmap): List<Map<String, Any>> {
+        api.setImage(bitmap)
+        api.getUTF8Text() // runs recognition
+        val lines = mutableListOf<Map<String, Any>>()
+        val it = api.resultIterator ?: return lines
+        val level = TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE
+        it.begin()
+        do {
+            val text = it.getUTF8Text(level)?.trim().orEmpty()
+            if (text.isEmpty()) continue
+            val box = it.getBoundingRect(level)
+            lines += mapOf(
+                "text" to text,
+                "height" to minOf(box.width(), box.height()).toDouble(),
+                "confidence" to it.confidence(level) / 100.0,
+            )
+        } while (it.next(level))
+        it.delete()
+        return lines
     }
 
     /** The camera stores rotation in EXIF; Tesseract needs the pixels upright. */
@@ -76,8 +95,11 @@ class MainActivity : FlutterActivity() {
             else -> 0f
         }
         if (degrees == 0f) return bitmap
+        return rotated(bitmap, degrees).also { bitmap.recycle() }
+    }
+
+    private fun rotated(bitmap: Bitmap, degrees: Float): Bitmap {
         val m = Matrix().apply { postRotate(degrees) }
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true)
-            .also { if (it != bitmap) bitmap.recycle() }
     }
 }

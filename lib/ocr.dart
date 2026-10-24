@@ -91,6 +91,7 @@ final _letter = RegExp(r'[A-Za-z֐-׿]');
 final _vowel = RegExp(r'[aeiouy]', caseSensitive: false);
 final _hebrew = RegExp(r'[֐-׿]');
 final _stroke = RegExp(r'[lIi1|!]');
+final _edgeJunk = RegExp(r'^[\s|\[\](){}<>\\/.,:;_\-]+|[\s|\[\](){}<>\\/.,:;_\-]+$');
 
 /// Below this the reader is usually guessing, often at Hebrew it can't read.
 const minConfidence = 0.6;
@@ -110,7 +111,12 @@ final _noise = RegExp(
 List<String> nameCandidates(List<TextLine> lines, {int max = 6}) {
   final scored = <({String text, double height})>[];
   for (var i = 0; i < lines.length; i++) {
-    final text = lines[i].text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    // Stray marks at the ends ("| name", "name [") come from box edges.
+    final text = lines[i]
+        .text
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(_edgeJunk, '')
+        .trim();
     if (text.length < 3 || text.length > 40) continue;
     if (!_hasLetters.hasMatch(text) || _noise.hasMatch(text)) continue;
     if (!_looksLikeWords(text)) continue;

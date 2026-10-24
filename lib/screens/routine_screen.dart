@@ -44,9 +44,11 @@ class _RoutineScreenState extends State<RoutineScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: day[anchor],
-      initialEntryMode: TimePickerEntryMode.input,
+      initialEntryMode: TimePickerEntryMode.dial,
+      // A 12-hour face with AM/PM reads like a real clock; the 24-hour face
+      // crowds two rings of numbers into the dial.
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
         child: child!,
       ),
     );

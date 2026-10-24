@@ -51,6 +51,21 @@ void main() {
       expect(names, isNot(contains('ןםפךצ')));
     });
 
+    test('Given the Bezafibrate box Amit photographed, Then its name comes first', () {
+      // What the Hebrew reader returned for that photo, turned upright.
+      final names = nameCandidates([
+        TextLine('| בזאפיבראט מדומי', 80, confidence: 0.84),
+        TextLine('\\במת |ב> 9', 71, confidence: 0.29),
+        TextLine('בזאפיבראט 0', 91, confidence: 0.57),
+        TextLine('טבליות בשחרור מושהה', 42, confidence: 0.92),
+        TextLine('בעל הרישום: מדומי פארמה בע"מ [', 27, confidence: 0.88),
+        TextLine('תד 816, גבעתיים, 5358305 שרח', 61, confidence: 0.55),
+        TextLine('השש |', 85, confidence: 0.35),
+        TextLine('medomie', 50, confidence: 0.95),
+      ]);
+      expect(names.first, 'בזאפיבראט מדומי');
+    });
+
     test('nothing readable gives no candidates', () {
       expect(nameCandidates([TextLine('---', 50)]), isEmpty);
     });

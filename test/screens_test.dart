@@ -63,6 +63,13 @@ void main() {
     return state;
   }
 
+  /// A phone-shaped screen, so the form's chips aren't hidden under Save.
+  void phoneSize(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+  }
+
   Widget app(AppState state, String lang, Widget home) => Scope(
         state: state,
         reminders: Reminders(state),
@@ -145,6 +152,7 @@ void main() {
   });
 
   testWidgets('Given no times chosen, When Save is tapped, Then it asks for a time', (tester) async {
+    phoneSize(tester);
     final state = AppState.memory();
     await tester.pumpWidget(app(state, 'en', const EditMedicineScreen()));
     await tester.pumpAndSettle();
@@ -153,16 +161,56 @@ void main() {
     // Twice a day starts selected: untick both of its times.
     for (final a in [Anchor.breakfast, Anchor.dinner]) {
       final chip = find.byKey(Key('anchor.${a.name}'));
-      await tester.scrollUntilVisible(chip, 100,
-          scrollable: find.byType(Scrollable).first);
+      await tester.dragUntilVisible(chip, find.byType(ListView), const Offset(0, -150));
+    await tester.ensureVisible(chip);
+    await tester.pumpAndSettle();
       await tester.tap(chip);
     }
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Pick at least one time'), findsOneWidget);
+    expect(find.text('Pick 2 times'), findsOneWidget);
     expect(state.medicines, isEmpty);
+  });
+
+  testWidgets('Given once a day, When another time is tapped, Then it replaces the first', (tester) async {
+    phoneSize(tester);
+    final state = AppState.memory();
+    await tester.pumpWidget(app(state, 'en', const EditMedicineScreen()));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('nameField')), 'Acamol');
+    await tester.tap(find.text('Once a day'));
+    await tester.pumpAndSettle();
+
+    final dinner = find.byKey(const Key('anchor.dinner'));
+    await tester.dragUntilVisible(dinner, find.byType(ListView), const Offset(0, -150));
+    await tester.ensureVisible(dinner);
+    await tester.pumpAndSettle();
+    await tester.tap(dinner);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save')));
+    await tester.pumpAndSettle();
+
+    expect(state.medicines.single.anchors, {Anchor.dinner});
+  });
+
+  testWidgets('Given twice a day with two times chosen, Then a third cannot be added', (tester) async {
+    phoneSize(tester);
+    final state = AppState.memory();
+    await tester.pumpWidget(app(state, 'en', const EditMedicineScreen()));
+    await tester.pumpAndSettle();
+
+    final lunch = find.byKey(const Key('anchor.lunch'));
+    await tester.dragUntilVisible(lunch, find.byType(ListView), const Offset(0, -150));
+    await tester.ensureVisible(lunch);
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilterChip>(lunch).onSelected, isNull);
+
+    // Untick dinner, and lunch can be picked instead.
+    await tester.tap(find.byKey(const Key('anchor.dinner')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilterChip>(lunch).onSelected, isNotNull);
   });
 
   group('alarm screen', () {
