@@ -13,8 +13,10 @@ import 'package:pill_tracker/schedule.dart';
 import 'package:pill_tracker/scope.dart';
 import 'package:pill_tracker/screens/dose_screen.dart';
 import 'package:pill_tracker/screens/edit_medicine_screen.dart';
+import 'package:pill_tracker/screens/settings_screen.dart';
 import 'package:pill_tracker/screens/today_screen.dart';
 import 'package:pill_tracker/store.dart';
+import 'package:pill_tracker/whats_new.dart';
 
 /// Renders every screen in English and Hebrew on a small phone, so layout
 /// overflows and missing texts show up as failures.
@@ -99,6 +101,7 @@ void main() {
         Icons.medication_outlined,
         Icons.calendar_month_outlined,
         Icons.wb_sunny_outlined,
+        Icons.settings_outlined,
       ]) {
         await tester.tap(find.byIcon(icon));
         await tester.pumpAndSettle();
@@ -277,6 +280,77 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(state.medicines.single.days, {DateTime.monday, DateTime.thursday});
+  });
+
+  testWidgets('Given Settings, When a name is typed and a sound tapped, Then both are saved', (tester) async {
+    phoneSize(tester);
+    final state = AppState.memory();
+    await tester.pumpWidget(app(state, 'en', const Scaffold(body: SettingsScreen())));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('userName')), 'Dana');
+    await tester.pump(const Duration(seconds: 1));
+    expect(state.userName, 'Dana');
+
+    final picker = find.byKey(const Key('soundPicker'));
+    await tester.ensureVisible(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bell').last);
+    await tester.pumpAndSettle();
+    expect(state.alarmSound, AlarmSound.appTones[1]);
+  });
+
+  testWidgets('Given a name, When the app opens, Then it says hello and then shows Today', (tester) async {
+    final state = await sampleState();
+    await state.setUserName('Dana');
+    await tester.pumpWidget(PillApp(state: state, reminders: Reminders(state)));
+    await tester.pump();
+    expect(find.text('Hello, Dana'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('hello')), findsNothing);
+    expect(find.byType(TodayScreen), findsOneWidget);
+  });
+
+  testWidgets('Given an update, When the app opens, Then what is new shows once', (tester) async {
+    final state = await sampleState();
+    await tester.pumpWidget(PillApp(state: state, reminders: Reminders(state)));
+    await tester.pumpAndSettle();
+    expect(find.text("What's new in this version"), findsOneWidget);
+    expect(state.seenRelease, currentRelease.number);
+
+    await tester.tap(find.byKey(const Key('whatsNewOk')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('whatsNewOk')), findsNothing);
+
+    // Opening the app again, or coming back to it, doesn't show it again.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(PillApp(state: state, reminders: Reminders(state)));
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('whatsNewOk')), findsNothing);
+  });
+
+  testWidgets('Given a fresh install, When the app opens, Then there is no news to show', (tester) async {
+    final state = AppState.memory();
+    await tester.pumpWidget(PillApp(state: state, reminders: Reminders(state)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('whatsNewOk')), findsNothing);
+    expect(state.seenRelease, currentRelease.number);
+  });
+
+  testWidgets('Given no name, When the app opens, Then Today shows at once', (tester) async {
+    final state = await sampleState();
+    await state.setSeenRelease(currentRelease.number);
+    await tester.pumpWidget(PillApp(state: state, reminders: Reminders(state)));
+    await tester.pump();
+    expect(find.byKey(const Key('hello')), findsNothing);
+    expect(find.byType(TodayScreen), findsOneWidget);
   });
 
   group('alarm screen', () {

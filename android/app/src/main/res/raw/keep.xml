@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The reminders name this icon only from Dart, so keep it in release builds. -->
+<!-- The reminders name these only from Dart, so keep them in release builds. -->
 <resources xmlns:tools="http://schemas.android.com/tools"
-    tools:keep="@drawable/ic_notification" />
+    tools:keep="@drawable/ic_notification,@raw/pill_chime,@raw/pill_bell,@raw/pill_beeps" />

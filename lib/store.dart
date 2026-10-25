@@ -18,6 +18,15 @@ class AppState extends ChangeNotifier {
 
   /// 'en' or 'he'; null follows the phone's language.
   String? languageCode;
+
+  /// The name in the greeting when the app opens; empty for no greeting.
+  String userName = '';
+  /// Null for the phone's notification sound.
+  AlarmSound? alarmSound;
+
+  /// The last version whose "What's new" was shown; null on a fresh install
+  /// and for versions from before the note existed.
+  int? seenRelease;
   int _nextId = 1;
 
   /// Called after anything that affects reminders changes.
@@ -57,6 +66,9 @@ class AppState extends ChangeNotifier {
         routine = Routine.fromJson((json['routine'] as Map).cast<String, dynamic>());
       }
       languageCode = json['language'] as String?;
+      userName = (json['userName'] as String?) ?? '';
+      alarmSound = AlarmSound.fromJson(json['alarmSound']);
+      seenRelease = json['seenRelease'] as int?;
       _nextId = (json['nextId'] as int?) ??
           (medicines.isEmpty ? 1 : medicines.map((m) => m.id).reduce((a, b) => a > b ? a : b) + 1);
     } catch (e) {
@@ -74,6 +86,9 @@ class AppState extends ChangeNotifier {
       'version': 1,
       'nextId': _nextId,
       'language': languageCode,
+      'userName': userName,
+      'alarmSound': alarmSound?.toJson(),
+      'seenRelease': seenRelease,
       'routine': routine.toJson(),
       'medicines': medicines.map((m) => m.toJson()).toList(),
       'logs': logs.map((l) => l.toJson()).toList(),
@@ -126,6 +141,22 @@ class AppState extends ChangeNotifier {
     languageCode = code;
     // Reminder text is written in the chosen language.
     await _changed(schedule: true);
+  }
+
+  Future<void> setUserName(String name) async {
+    userName = name.trim();
+    await _changed();
+  }
+
+  Future<void> setAlarmSound(AlarmSound? sound) async {
+    alarmSound = sound;
+    // Every upcoming reminder moves to the new sound.
+    await _changed(schedule: true);
+  }
+
+  Future<void> setSeenRelease(int number) async {
+    seenRelease = number;
+    await _changed();
   }
 
   IntakeLog? logFor(DoseKey key) {

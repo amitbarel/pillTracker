@@ -23,7 +23,9 @@ import 'package:pill_tracker/screens/common.dart';
 import 'package:pill_tracker/screens/dose_screen.dart';
 import 'package:pill_tracker/screens/edit_medicine_screen.dart';
 import 'package:pill_tracker/screens/today_screen.dart';
+import 'package:pill_tracker/screens/welcome_screen.dart';
 import 'package:pill_tracker/store.dart';
+import 'package:pill_tracker/whats_new.dart';
 
 Future<void> _loadFont(String family, List<String> paths) async {
   final loader = FontLoader(family);
@@ -152,6 +154,40 @@ void main() {
       await tester.pumpAndSettle();
       await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_4b_timepicker.png'));
       await tester.tap(find.byType(TextButton).first); // Cancel
+      await tester.pumpAndSettle();
+
+      // Settings: the name, the alarm sound, reliability and language.
+      await state.setUserName(lang == 'he' ? 'דנה' : 'Dana');
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_4c_settings.png'));
+      await tester.tap(find.byKey(const Key('soundPicker')));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_4e_sounds.png'));
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -700));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_4d_settings.png'));
+
+      await tester.pumpWidget(app(state, lang, WelcomeScreen(name: state.userName, onDone: () {})));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_0_welcome.png'));
+
+      await tester.pumpWidget(app(state, lang, Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => showWhatsNew(context, currentRelease),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      )));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(MaterialApp), matchesGoldenFile('out/${lang}_0b_whatsnew.png'));
+      await tester.tap(find.byKey(const Key('whatsNewOk')));
       await tester.pumpAndSettle();
 
       await tester.pumpWidget(app(state, lang, EditMedicineScreen(key: const ValueKey(1), medicine: state.medicines[1])));

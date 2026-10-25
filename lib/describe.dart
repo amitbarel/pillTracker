@@ -8,6 +8,13 @@ String anchorName(S s, Anchor a) => s['anchor.${a.name}'];
 String foodName(S s, FoodRelation f) => s['food.${f.name}'];
 String presetName(S s, Preset p) => s['preset.${p.name}'];
 
+/// A sound's name: the phone's own name for it, or ours for the app's tones.
+String soundName(S s, AlarmSound? sound) => switch (sound) {
+      null => s['sound.notification'],
+      AlarmSound(kind: SoundKind.app, :final title) => s['sound.$title'],
+      AlarmSound(:final title) => title,
+    };
+
 /// "after breakfast", "On waking", "at 9:00" …
 String whenText(S s, Slot slot, FoodRelation food) {
   final anchor = slot.anchor;
