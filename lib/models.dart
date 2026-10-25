@@ -13,6 +13,58 @@ enum Anchor {
       this == Anchor.breakfast || this == Anchor.lunch || this == Anchor.dinner;
 }
 
+/// What a reminder sounds like: one of the phone's sounds, or a tone that
+/// comes with the app. Null where one is expected means the phone's
+/// notification sound, as before sounds could be chosen.
+class AlarmSound {
+  const AlarmSound(this.uri, this.title, {this.kind = SoundKind.alarm});
+
+  final String uri;
+
+  /// As the phone names it. The app's own tones are named in [S] instead.
+  final String title;
+  final SoundKind kind;
+
+  /// The tones in android/app/src/main/res/raw, made by tools/make_sounds.py.
+  static const appTones = [
+    AlarmSound('android.resource://com.amitbarel.pill_tracker/raw/pill_chime', 'chime',
+        kind: SoundKind.app),
+    AlarmSound('android.resource://com.amitbarel.pill_tracker/raw/pill_bell', 'bell',
+        kind: SoundKind.app),
+    AlarmSound('android.resource://com.amitbarel.pill_tracker/raw/pill_beeps', 'beeps',
+        kind: SoundKind.app),
+  ];
+
+  /// A short id that stays the same between runs, unlike [String.hashCode].
+  String get id {
+    var h = 0x811c9dc5;
+    for (final c in uri.codeUnits) {
+      h = ((h ^ c) * 0x01000193) & 0xffffffff;
+    }
+    return h.toRadixString(36);
+  }
+
+  Map<String, dynamic> toJson() => {'uri': uri, 'title': title, 'kind': kind.name};
+
+  static AlarmSound? fromJson(Object? json) {
+    if (json is! Map || json['uri'] is! String) return null;
+    return AlarmSound(
+      json['uri'] as String,
+      (json['title'] as String?) ?? '',
+      kind: SoundKind.values.where((k) => k.name == json['kind']).firstOrNull ?? SoundKind.alarm,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) => other is AlarmSound && other.uri == uri;
+
+  @override
+  int get hashCode => uri.hashCode;
+}
+
+/// Where a sound comes from, as the phone groups them.
+enum SoundKind { app, alarm, notification, ringtone }
+
 enum FoodRelation {
   before(-30),
   withFood(0),

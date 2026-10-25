@@ -16,27 +16,6 @@ class RoutineScreen extends StatefulWidget {
 }
 
 class _RoutineScreenState extends State<RoutineScreen> {
-  bool? _notifications;
-  bool? _alarms;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkPermissions());
-  }
-
-  Future<void> _checkPermissions() async {
-    final r = Scope.read(context).reminders;
-    final n = await r.notificationsAllowed();
-    final a = await r.exactAlarmsAllowed();
-    if (mounted) {
-      setState(() {
-        _notifications = n;
-        _alarms = a;
-      });
-    }
-  }
-
   Future<void> _editTime(Anchor anchor, bool weekend) async {
     final state = Scope.read(context).state;
     final routine = state.routine;
@@ -160,81 +139,7 @@ class _RoutineScreenState extends State<RoutineScreen> {
               ),
           ]),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: SectionTitle(s['reliability']),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Card(
-            child: Column(children: [
-              _permissionTile(s, s['allowNotifications'], _notifications),
-              _permissionTile(s, s['allowAlarms'], _alarms),
-              ListTile(
-                leading: const Icon(Icons.battery_alert_outlined),
-                title: Text(s['batteryTip'], style: text.bodyMedium),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56)),
-                  icon: const Icon(Icons.alarm),
-                  onPressed: () async {
-                    await scope.reminders.testAlarm();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(s['testAlarmSet'])));
-                    }
-                  },
-                  label: Text(s['testAlarm']),
-                ),
-              ),
-            ]),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: SectionTitle(s['language']),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SegmentedButton<String>(
-            showSelectedIcon: false,
-            segments: [
-              ButtonSegment(value: '', label: Text(s['systemLanguage'])),
-              const ButtonSegment(value: 'en', label: Text('English')),
-              const ButtonSegment(value: 'he', label: Text('עברית')),
-            ],
-            selected: {state.languageCode ?? ''},
-            onSelectionChanged: (v) =>
-                state.setLanguage(v.first.isEmpty ? null : v.first),
-          ),
-        ),
       ],
-    );
-  }
-
-  Widget _permissionTile(S s, String title, bool? allowed) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final c = AppColors.of(context);
-    return ListTile(
-      leading: Icon(
-        allowed == false ? Icons.error_outline : Icons.check_circle_outline,
-        color: allowed == false ? c.warn : primary,
-      ),
-      title: Text(title, style: Theme.of(context).textTheme.bodyLarge),
-      subtitle: allowed == true ? Text(s['allowed']) : null,
-      trailing: allowed == false
-          ? FilledButton(
-              style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-              onPressed: () async {
-                await Scope.of(context).reminders.requestPermissions();
-                await _checkPermissions();
-              },
-              child: const Icon(Icons.arrow_forward),
-            )
-          : null,
     );
   }
 }

@@ -3,7 +3,15 @@ package com.amitbarel.pill_tracker
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.media.AudioAttributes
 import android.media.ExifInterface
+import android.media.Ringtone
+import android.media.RingtoneManager
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.view.WindowManager
 import android.os.Handler
 import android.os.Looper
 import com.googlecode.tesseract.android.TessBaseAPI
@@ -15,6 +23,44 @@ import java.util.concurrent.Executors
 class MainActivity : FlutterActivity() {
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
+    private var playing: Ringtone? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        showOverLockFor(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        showOverLockFor(intent)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Leaving the app, or the screen turning off: next time it opens it
+        // waits behind the lock like any other app.
+        showOverLock(false)
+    }
+
+    /**
+     * Only a ringing reminder shows over the lock screen, like an alarm clock.
+     * The notifications plugin opens the app with this action for that.
+     */
+    private fun showOverLockFor(intent: Intent?) {
+        if (intent?.action == "SELECT_NOTIFICATION") showOverLock(true)
+    }
+
+    private fun showOverLock(on: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(on)
+            setTurnScreenOn(on)
+        } else {
+            @Suppress("DEPRECATION")
+            val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            if (on) window.addFlags(flags) else window.clearFlags(flags)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -32,6 +78,72 @@ class MainActivity : FlutterActivity() {
                     }
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pill_tracker/sound")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "play" -> try {
+                        play(call.argument<String>("uri"))
+                        result.success(null)
+                    } catch (e: Throwable) {
+                        result.error("sound", e.message, null)
+                    }
+                    "list" -> worker.execute {
+                        try {
+                            val sounds = phoneSounds()
+                            main.post { result.success(sounds) }
+                        } catch (e: Throwable) {
+                            main.post { result.error("sound", e.message, null) }
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pill_tracker/screen")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "alarmClosed") return@setMethodCallHandler result.notImplemented()
+                showOverLock(false)
+                result.success(null)
+            }
+    }
+
+    /** The phone's alarm, notification and ringtone sounds, in that order. */
+    private fun phoneSounds(): List<Map<String, String>> {
+        val seen = HashSet<String>()
+        val sounds = ArrayList<Map<String, String>>()
+        for ((type, kind) in listOf(
+            RingtoneManager.TYPE_ALARM to "alarm",
+            RingtoneManager.TYPE_NOTIFICATION to "notification",
+            RingtoneManager.TYPE_RINGTONE to "ringtone",
+        )) {
+            val manager = RingtoneManager(this)
+            manager.setType(type)
+            val cursor = manager.cursor
+            while (cursor.moveToNext()) {
+                val uri = manager.getRingtoneUri(cursor.position).toString()
+                val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX) ?: continue
+                if (seen.add(uri)) sounds.add(mapOf("uri" to uri, "title" to title, "kind" to kind))
+            }
+        }
+        return sounds
+    }
+
+    /**
+     * Plays a reminder sound for a few seconds, as an alarm would, or the
+     * phone's notification sound when no sound is given.
+     */
+    private fun play(uri: String?) {
+        playing?.stop()
+        val sound = if (uri != null) Uri.parse(uri)
+            else RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val ringtone = RingtoneManager.getRingtone(this, sound) ?: return
+        ringtone.audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        ringtone.play()
+        playing = ringtone
+        // Phone sounds can be long songs; a few seconds is enough to recognise one.
+        main.postDelayed({ if (playing === ringtone) ringtone.stop() }, 5000)
     }
 
     /**

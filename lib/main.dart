@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'device.dart';
 import 'l10n.dart';
 import 'models.dart';
 import 'notifications.dart';
@@ -12,10 +13,13 @@ import 'screens/dose_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/medicines_screen.dart';
 import 'screens/routine_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/today_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'scope.dart';
 import 'store.dart';
 import 'theme.dart';
+import 'whats_new.dart';
 
 export 'theme.dart' show buildTheme;
 
@@ -42,13 +46,43 @@ class _PillAppState extends State<PillApp> with WidgetsBindingObserver {
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
 
+  /// The "Hello" screen, shown on opening when a name is set. An alarm that
+  /// opened the app goes straight to the medicine instead.
+  late bool _welcome =
+      widget.state.userName.isNotEmpty && widget.reminders.actions.value == null;
+
+  /// Set when an alarm opened the app: no greeting or news over it.
+  bool _openedByAlarm = false;
+
+  void _endWelcome() {
+    if (!_welcome || !mounted) return;
+    setState(() => _welcome = false);
+    _showWhatsNew();
+  }
+
+  /// Tells about a new version once. A fresh install has nothing to compare
+  /// with, so it starts from the current version silently.
+  Future<void> _showWhatsNew() async {
+    final state = widget.state;
+    final release = currentRelease;
+    if (_openedByAlarm || (state.seenRelease ?? 0) >= release.number) return;
+    final fresh = state.seenRelease == null && state.medicines.isEmpty;
+    await state.setSeenRelease(release.number);
+    final context = _navigator.currentContext;
+    if (fresh || context == null || !context.mounted) return;
+    await showWhatsNew(context, release);
+  }
+
   @override
   void initState() {
     super.initState();
+    if (_welcome) Timer(const Duration(milliseconds: 2200), _endWelcome);
     WidgetsBinding.instance.addObserver(this);
     widget.reminders.actions.addListener(_onReminder);
     widget.state.addListener(_onState);
+    _openedByAlarm = widget.reminders.actions.value != null;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!_welcome) _showWhatsNew();
       await widget.reminders.requestPermissions();
       await widget.reminders.reschedule();
       // An alarm may have opened the app before the first frame.
@@ -87,6 +121,8 @@ class _PillAppState extends State<PillApp> with WidgetsBindingObserver {
     final nav = _navigator.currentState;
     if (r == null || nav == null) return;
     widget.reminders.clearAction();
+    _openedByAlarm = true;
+    _endWelcome();
     final s = _s;
     switch (r.action) {
       case Reminders.taken:
@@ -102,7 +138,10 @@ class _PillAppState extends State<PillApp> with WidgetsBindingObserver {
         await widget.reminders.snoozeDose(r.dose);
         _toast(s['snoozed']);
       default:
-        if (widget.state.medicine(r.dose.medicineId) == null) return;
+        if (widget.state.medicine(r.dose.medicineId) == null) {
+          await Device.alarmClosed();
+          return;
+        }
         nav.push(MaterialPageRoute<void>(
           builder: (_) => DoseScreen(dose: r.dose),
           fullscreenDialog: true,
@@ -137,7 +176,17 @@ class _PillAppState extends State<PillApp> with WidgetsBindingObserver {
           if (code == 'he' || code == 'iw') return const Locale('he');
           return const Locale('en');
         },
-        builder: (context, child) => TextSizeLimit(child: child!),
+        builder: (context, child) => TextSizeLimit(
+          child: Stack(fit: StackFit.expand, children: [
+            child!,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              child: _welcome
+                  ? WelcomeScreen(name: widget.state.userName, onDone: _endWelcome)
+                  : const SizedBox.shrink(),
+            ),
+          ]),
+        ),
         home: const HomeScreen(),
       ),
     );
@@ -176,6 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MedicinesScreen(),
       HistoryScreen(),
       RoutineScreen(),
+      SettingsScreen(),
     ];
     // Back on another tab returns to Today instead of leaving the app.
     return PopScope(
@@ -212,6 +262,10 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.wb_sunny_outlined),
               selectedIcon: const Icon(Icons.wb_sunny),
               label: s['myDay']),
+          NavigationDestination(
+              icon: const Icon(Icons.settings_outlined),
+              selectedIcon: const Icon(Icons.settings),
+              label: s['settings']),
         ],
       ),
       ),

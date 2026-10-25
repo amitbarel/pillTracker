@@ -23,6 +23,8 @@ void main() {
         startDate: DateTime(2026, 10, 1),
       );
 
+  const cesium = AlarmSound('content://media/internal/audio/media/12', 'Cesium');
+
   group('AppState persistence', () {
     test('Given no saved file, When loaded, Then it starts empty with default times', () async {
       final state = await AppState.loadFrom(file);
@@ -31,6 +33,9 @@ void main() {
       expect(state.logs, isEmpty);
       expect(state.routine.weekday[Anchor.wake], const TimeOfDay(hour: 6, minute: 0));
       expect(state.languageCode, isNull);
+      expect(state.userName, isEmpty);
+      expect(state.alarmSound, isNull);
+      expect(state.seenRelease, isNull);
     });
 
     test('Given saved medicines, logs, routine and language, When reloaded, Then all come back', () async {
@@ -41,8 +46,17 @@ void main() {
       await state.record(key, IntakeStatus.taken, at: DateTime(2026, 10, 24, 8, 5));
       await state.setRoutine(state.routine.copyWith(weekendDays: {5, 6}));
       await state.setLanguage('he');
+      await state.setUserName('  Dana ');
+      await state.setAlarmSound(cesium);
+      await state.setSeenRelease(5);
 
       final reloaded = await AppState.loadFrom(file);
+
+      expect(reloaded.userName, 'Dana');
+      expect(reloaded.alarmSound, cesium);
+      expect(reloaded.alarmSound!.title, 'Cesium');
+      expect(reloaded.alarmSound!.kind, SoundKind.alarm);
+      expect(reloaded.seenRelease, 5);
 
       expect(reloaded.medicines.single.name, 'Fictivol');
       expect(reloaded.logFor(key)!.at, DateTime(2026, 10, 24, 8, 5));

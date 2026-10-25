@@ -62,6 +62,48 @@ void main() {
       expect(scheduled().where((a) => !isDose(a)), hasLength(1));
     });
 
+    test('Given the chime chosen, When rescheduled, Then doses ring on the chime channel with its sound', () async {
+      final state = await withMedicine({Anchor.breakfast});
+      final chime = AlarmSound.appTones.first;
+      await state.setAlarmSound(chime);
+      calls.clear();
+
+      await Reminders(state).reschedule();
+
+      final android = scheduled().where(isDose).first['platformSpecifics'] as Map;
+      expect(android['channelId'], 'medicine_alarms_${chime.id}_v1');
+      expect(android['sound'], chime.uri);
+    });
+
+    test('Given the sound changed, When rescheduled, Then the old channel is removed', () async {
+      final state = await withMedicine({Anchor.breakfast});
+      final reminders = Reminders(state);
+      await reminders.reschedule();
+      await state.setAlarmSound(AlarmSound.appTones.last);
+      calls.clear();
+
+      await reminders.reschedule();
+
+      final deleted = calls.where((c) => c.method == 'deleteNotificationChannel');
+      expect(deleted.single.arguments, 'medicine_alarms_v1');
+    });
+
+    test('Sound ids are short and stay the same between runs', () {
+      expect(AlarmSound.appTones.first.id, AlarmSound.appTones.first.id);
+      expect(AlarmSound.appTones.map((t) => t.id).toSet(), hasLength(3));
+      expect(const AlarmSound('content://x', 'X').id, '1sercuq');
+    });
+
+    test('Given the phone notification sound, When rescheduled, Then the original channel is kept', () async {
+      final state = await withMedicine({Anchor.breakfast});
+
+      await Reminders(state).reschedule();
+
+      final android = scheduled().where(isDose).first['platformSpecifics'] as Map;
+      expect(android['channelId'], 'medicine_alarms_v1');
+      expect(android['sound'], isNull);
+    });
+
     test('Given a dose already taken, When rescheduled, Then that dose does not ring', () async {
       final state = await withMedicine({Anchor.bedtime});
       final tomorrow = DateTime.now().add(const Duration(days: 1));

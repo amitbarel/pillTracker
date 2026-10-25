@@ -48,7 +48,13 @@ class Reminders {
   static const _keepAliveId = 1999999999;
   static const _testId = 2147480000;
 
-  static const _channelId = 'medicine_alarms_v1';
+  /// Android fixes a channel's sound once it exists, so each sound has its
+  /// own channel. The phone's notification sound keeps the original one.
+  static String _channelFor(AlarmSound? sound) =>
+      sound == null ? 'medicine_alarms_v1' : 'medicine_alarms_${sound.id}_v1';
+
+  /// The channel reminders rang on before the sound last changed.
+  String? _oldChannel;
 
   final _actions = ValueNotifier<ReminderAction?>(null);
 
@@ -129,10 +135,12 @@ class Reminders {
     final photo = photoPath != null && File(photoPath).existsSync()
         ? FilePathAndroidBitmap(photoPath)
         : null;
+    final sound = state.alarmSound;
     return NotificationDetails(
       android: AndroidNotificationDetails(
-        _channelId,
-        s['channelName'],
+        _channelFor(sound),
+        sound == null ? s['channelName'] : '${s['channelName']} (${soundName(s, sound)})',
+        sound: sound == null ? null : UriAndroidNotificationSound(sound.uri),
         channelDescription: s['channelDescription'],
         importance: Importance.max,
         priority: Priority.max,
@@ -184,6 +192,12 @@ class Reminders {
   }
 
   Future<void> _reschedule() async {
+    // A changed sound leaves its old channel behind in the phone's settings.
+    final channel = _channelFor(state.alarmSound);
+    final old = _oldChannel;
+    if (old != null && old != channel) await _android?.deleteNotificationChannel(channelId: old);
+    _oldChannel = channel;
+
     final pending = await _plugin.pendingNotificationRequests();
     for (final p in pending) {
       if (p.id < _keepFrom) await _plugin.cancel(id: p.id);
@@ -214,7 +228,7 @@ class Reminders {
         id: _keepAliveId,
         scheduledDate: tz.TZDateTime.from(nudge, tz.local),
         notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(_channelId, s['channelName']),
+          android: AndroidNotificationDetails(_channelFor(state.alarmSound), s['channelName']),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         title: s['keepAliveTitle'],
